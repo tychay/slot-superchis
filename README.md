@@ -53,7 +53,7 @@ are skipped and counted in the footer.
 This is delivered as a `.gba` file that you run from the SD card. Nothing is flashed.
 
 1. Your SuperChis must already run stock SuperFW from its flash (that is how you launch the fork).
-2. Copy `slot-superchis-M2.gba` (or your own `superfw.gba` build, see Build) to the SD card.
+2. Download `slot-superchis-v0.1.0.gba` from the GitHub Releases page (or build your own `superfw.gba`, see Build) and copy it to the SD card.
    Any folder works.
 3. Put your games, **unzipped**, in `Games/GBA` (`.gba`), `Games/GB` (`.gb`) and `Games/GBC`
    (`.gbc`) at the card root. Folders are not searched recursively; hidden files and macOS `._*`
@@ -158,7 +158,7 @@ real converter's output, generated in the container, plus converted real labels 
 
 ## Hardware test checklist (M2)
 
-Install `slot-superchis-M2.gba` and run Cart Studio as described above, then confirm:
+Install `the release `.gba`` and run Cart Studio as described above, then confirm:
 
 - [ ] The "slot." splash, "Reading shelf...", then the carousel. Carts that have art show their
       labels and shell colours; carts without art show the plain silhouette with the name.

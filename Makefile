@@ -2,7 +2,7 @@
 VERSION_WORD := 0x00000016
 VERSION_SLUG_WORD := $(shell git rev-parse --short=8 HEAD || echo FFFFFFFF)
 # slot: fork milestone, shown on the Info screen as "slot.<milestone>". Bump here only.
-SLOT_MILESTONE := M2
+SLOT_MILESTONE := 0.1.0
 SLOT_MAX_IMAGE_KB ?= 2048
 
 PREFIX		:= arm-none-eabi-
