@@ -8,7 +8,9 @@
 # sequence = comma-separated steps, executed in order, no spaces:
 #   wait:N          emulate N frames (60 frames = 1 s)
 #   KEY             tap KEY: held 4 frames, then 6 frames released
+#   KEY+KEY         tap a chord, e.g. B+Start
 #   hold:KEY[:N]    hold KEY for N frames (default 10)
+#   reg:HEXADDR     print the 16-bit value at a bus/IO address (e.g. reg:040000C6 = DMA1CNT_H)
 #   shot            write step<NN>_f<frame>.png (NN = shot counter)
 #   shot:NAME       write NAME.png
 # KEY (case-insensitive) = A B L R Start Select Up Down Left Right
@@ -17,7 +19,7 @@
 #
 # The runner is tools/mgba_shots.c, compiled on the fly against libmgba-dev (docker/Dockerfile).
 set -e
-[ $# -ge 2 ] || { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[ $# -ge 2 ] || { sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 cd "$(dirname "$0")/.."
 ROM=$1; SEQ=$2; OUT=${3:-build/shots}
 [ -f "$ROM" ] || { echo "no such ROM: $ROM" >&2; exit 2; }

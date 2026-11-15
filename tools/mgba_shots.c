@@ -73,19 +73,24 @@ int main(int argc, char **argv) {
       for (unsigned i = 0; i < sizeof(keymap) / sizeof(*keymap); i++)
         if (!strcasecmp(k, keymap[i].name)) { keys |= 1u << keymap[i].bit; run_frames(n); keys &= ~(1u << keymap[i].bit); found = 1; }
       if (!found) { fprintf(stderr, "unknown key %s\n", k); rc = 2; }
+    } else if (!strncmp(tok, "reg:", 4)) {              // reg:HEXADDR  print a 16-bit bus/IO value
+      uint32_t addr = (uint32_t)strtoul(tok + 4, NULL, 16);
+      printf("reg 0x%08x = 0x%04x (frame %u)\n", addr, core->busRead16(core, addr), frame);
     } else if (!strncmp(tok, "shot", 4)) {              // shot or shot:name
       if (tok[4] == ':') snprintf(name, sizeof(name), "%s", tok + 5);
       else snprintf(name, sizeof(name), "step%02u_f%u", shotn, frame);
       shotn++;
       rc = shot(argv[2], name);
-    } else {                                            // bare key name: tap (4 frames down, 6 up)
-      int found = 0;
-      for (unsigned i = 0; i < sizeof(keymap) / sizeof(*keymap); i++)
-        if (!strcasecmp(tok, keymap[i].name)) {
-          keys |= 1u << keymap[i].bit; run_frames(4);
-          keys &= ~(1u << keymap[i].bit); run_frames(6); found = 1;
-        }
-      if (!found) { fprintf(stderr, "unknown step '%s'\n", tok); rc = 2; }
+    } else {                                            // bare key name or chord KEY+KEY: tap (4 frames down, 6 up)
+      unsigned mask = 0;
+      char *k2, *sv2 = NULL;
+      for (k2 = strtok_r(tok, "+", &sv2); k2; k2 = strtok_r(NULL, "+", &sv2)) {
+        int found = 0;
+        for (unsigned i = 0; i < sizeof(keymap) / sizeof(*keymap); i++)
+          if (!strcasecmp(k2, keymap[i].name)) { mask |= 1u << keymap[i].bit; found = 1; }
+        if (!found) { fprintf(stderr, "unknown step '%s'\n", k2); rc = 2; }
+      }
+      if (!rc && mask) { keys |= mask; run_frames(4); keys &= ~mask; run_frames(6); }
     }
   }
   free(seq);

@@ -135,6 +135,17 @@ static int dir_entry(unsigned dir, unsigned i, FILINFO *fi) {
 }
 
 /* ------------------------------------------------------------------ FatFs stand-ins */
+extern const uint8_t pv_bmp_gba_a[], pv_bmp_gba_b[], pv_bmp_gba_flat[], pv_bmp_gb[], pv_bmp_gbc_a[], pv_bmp_gbc_b[];
+/* Cart Studio art served for a few of the fictional titles (task 6.5); every other cart shows the plain cart. */
+static const struct { const char *path; const uint8_t *data; unsigned size; } art[] = {
+  { "/SYSTEM/SLOT/CARTS/GBA/Aurora Quest.bmp",           pv_bmp_gba_a,    17094 },
+  { "/SYSTEM/SLOT/CARTS/GBA/Brick Breaker Advance.bmp",  pv_bmp_gba_b,    17094 },
+  { "/SYSTEM/SLOT/CARTS_FLAT/GBA/Aurora Quest.bmp",      pv_bmp_gba_flat, 17094 },
+  { "/SYSTEM/SLOT/CARTS/GB/Pocket Pinball.bmp",          pv_bmp_gb,       23350 },
+  { "/SYSTEM/SLOT/CARTS/GBC/Crystal Caverns.bmp",        pv_bmp_gbc_a,    23350 },
+  { "/SYSTEM/SLOT/CARTS/GBC/Neon Racer.bmp",             pv_bmp_gbc_b,    23350 },
+};
+#define ART_COUNT (sizeof(art) / sizeof(*art))
 #define FAKE_FILES 3
 struct fake_file { uint16_t len; uint8_t exists; uint8_t data[512]; };
 static struct fake_file HOSTBSS store[FAKE_FILES];
@@ -155,7 +166,17 @@ static int store_find(const char *path) {
 
 static FRESULT pv_open(FIL *fp, const TCHAR *path, BYTE mode_flags) {
   int i = store_find(path);
-  if (i < 0) return FR_NO_PATH;
+  if (i < 0) {
+    for (unsigned k = 0; k < ART_COUNT; k++)
+      if (!strcmp(path, art[k].path)) {
+        FIL_SLOT(fp) = FAKE_FILES + k;
+        fp->fptr = 0;
+        fp->obj.objsize = art[k].size;
+        FIL_SIZE(fp) = art[k].size;
+        return FR_OK;
+      }
+    return strncmp(path, "/SYSTEM/SLOT/CARTS", 18) ? FR_NO_PATH : FR_NO_FILE;
+  }
   if (mode_flags & FA_CREATE_ALWAYS) {
     store[i].exists = 1;
     store[i].len = 0;
@@ -169,6 +190,15 @@ static FRESULT pv_open(FIL *fp, const TCHAR *path, BYTE mode_flags) {
 }
 static FRESULT pv_close(FIL *fp) { (void)fp; return FR_OK; }
 static FRESULT pv_read(FIL *fp, void *buff, UINT btr, UINT *br) {
+  if (FIL_SLOT(fp) >= FAKE_FILES) {
+    unsigned k = FIL_SLOT(fp) - FAKE_FILES;
+    UINT n = fp->fptr < art[k].size ? art[k].size - (UINT)fp->fptr : 0;
+    if (n > btr) n = btr;
+    memcpy(buff, art[k].data + fp->fptr, n);
+    fp->fptr += n;
+    *br = n;
+    return FR_OK;
+  }
   uint16_t len = store[FIL_SLOT(fp)].len;
   UINT n = fp->fptr < len ? len - (UINT)fp->fptr : 0;
   if (n > btr) n = btr;
@@ -232,7 +262,7 @@ static void text8(int x, int y, const char *s, uint8_t colour) {
     if (c < 32 || c > 126) c = '?';
     for (int row = 0; row < 12; row++)
       for (int col = 0; col < 6; col++)
-        if (slot_font[c][row] & (128 >> col)) {
+        if (((const unsigned char (*)[12])slot_pack_item(SLOT_PK_FONT))[c][row] & (128 >> col)) {
           volatile uint16_t *p = &VRAM16[((y + row) * 240 + x + col) / 2];
           unsigned shift = ((x + col) & 1) * 8;
           *p = (uint16_t)((*p & ~(0xFFu << shift)) | ((unsigned)colour << shift));
