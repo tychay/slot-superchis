@@ -22,6 +22,7 @@
 - adr/0008-on-card-layout-compatible-with-slot-advance.md - `/Games/*`, `/SYSTEM/SLOT` compatible with Cart Studio
 
 - adr/0009-slot-sdram-window-in-low-half-browser-cap-12k.md - slot window at 0x08B80000–0x08E7FFFF (0x09 half is SD-register-shadowed); stock browser cap 16k→12k
+- adr/0010-sdram-is-16-bit-write-only-payload-statics-in-iwram.md - SuperCard SDRAM takes only 16/32-bit writes; payload statics move to IWRAM (12 KiB window); supersedes ADR-0005 IWRAM cap and ADR-0009 statics sub-region
 
 ## Notes
 
