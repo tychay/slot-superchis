@@ -105,11 +105,98 @@ A tool, `tools/slot_pack.py`, emits `res/slot_assets.pack` from the pinned
 `rom_boot.S` unpacks it (apultra or upkr, same as the other assets) into a reserved SDRAM
 region. The payload reads art through pointers in a pack header.
 
-- **SDRAM region:** proposed `0x09800000–0x09DFFFFF`, after the 8 MB hiscratch and before the
+- **SDRAM region:** SUPERSEDED by "SDRAM map (audited)" below (window is `0x08B80000-0x08E7FFFF`). Original text: proposed `0x09800000–0x09DFFFFF`, after the 8 MB hiscratch and before the
   `0x09E00000` assets. The implementer MUST verify it against every SDRAM user, and add
   `_Static_assert`s and a build-time size check.
 - **Why:** keeps 360 KB of art out of EWRAM; reuses the existing loader and compressors.
 - **Image cap:** a build check fails if `superfw.gba` exceeds 2,048 KB.
+
+### SDRAM map (audited)
+
+Audited in task 3.1 against `src/common.h`, `src/menu.c`, `src/loader.c`, `src/main.c`,
+`src/misc.c`, `src/virtfs.c`, `src/supercard_io.S`, `rom_boot.S`. This **amends D5**: the
+proposed window `0x09800000-0x09DFFFFF` is NOT usable, for two reasons.
+
+1. **The whole `0x09xxxxxx` half is shadowed by the SuperCard SD interface** whenever it is mapped
+   (`set_supercard_mode(MAPPED_SDRAM, true, true)`, the menu's normal state): `supercard_io.S`
+   puts the SD write/read/command registers at `0x09000000`, `0x09100000`, `0x09200000`,
+   `0x09800000` and the mode register at `0x09FFFFFE`. Every stock access to `0x09xxxxxx`
+   (hiscratch, patch DB, assets) is wrapped in `set_supercard_mode(..., false)`. A payload
+   executing from, or a FatFs read landing in, `0x09xxxxxx` would break the moment it called
+   the SD driver. The `0x08xxxxxx` half is unaffected (the font pack at `0x08E80000` is read
+   with the SD interface on).
+2. `0x09D00000-0x09DFFFFF` holds the built-in patch DB and `0x09E00000+` the emulator assets
+   (the design text had the fonts at `0x08F00000`; the code says `0x08E80000`).
+
+| Region | Start | End (incl.) | Size | Used by | When |
+|---|---|---|---|---|---|
+| Boot image (SD boot) | `0x08000000` | `0x081FFFFF` max | <= 2 MiB (1.59 MiB now) | `rom_boot.S` source for all copy/unpack steps | boot only, until the firmware is unpacked to EWRAM |
+| `sdr_state->scratch` | `0x08000000` | `0x081FFFFF` | 2 MiB | FW update (`menu.c` ~2204-2245), NOR flashing (`menu.c` ~2581, `loader.c` flash_gba_nor) | during those operations |
+| `fileorder`, `filefilter` | `0x08200000`, `0x0820C000` | `0x0820BFFF`, `0x08217FFF` | 48 KiB each | browser sort/filter (`menu.c`) | menu running |
+| `fentries` | `0x08218000` | `0x08B2FFFF` | 9,535,488 B (12288 x 776) | browser file list | menu running |
+| `rentries`, `nordata` | `0x08B30000` | `0x08B3EE2B` | 52,000 + 8,972 B | recent list, NOR registry | menu running |
+| (free margin below window) | `0x08B3EE2C` | `0x08B7FFFF` | 266,708 B | nothing | |
+| **slot window** | **`0x08B80000`** | **`0x08E7FFFF`** | **3 MiB** | **slot.payload, mailbox, statics, scratch (layout below)** | **resident, also while the stock UI runs** |
+| Fonts + cheats | `0x08E80000` | `0x08FFFFFF` | 1.5 MiB | font glyph DB (`rom_boot.S`, constantly read by the menu); cheats at `FONT_BASE + font_block_size()` (`menu.c` ~758) | boot + menu running |
+| hiscratch | `0x09000000` | `0x097FFFFF` | 8 MiB | patch-engine ROM scratch (`menu.c` ~501-526, SD off); `rom_boot.S` temp for compressed fonts (not on chis) | during patch generation |
+| unused | `0x09800000` | `0x09BFFFFF` | 4 MiB | nothing, but unreachable with SD on | |
+| `ROM_OFF_USRPATCH_DB` | `0x09C00000` | `0x09CFFFFF` | 1 MiB | defined in `common.h`, never referenced | |
+| built-in patch DB | `0x09D00000` | `0x09DFFFFF` | 1 MiB (103 KB used) | `rom_boot.S`, `menu.c` ~693 (SD off); user-loaded DB written by `load_patchdb_action` | boot, ROM open |
+| assets (emulators) | `0x09E00000` | `0x09FFFFFD` | 2 MiB | `virtfs.c` at emulator launch | launch |
+| SC mode register | `0x09FFFFFE` | | 2 B | `supercard_driver.c` | always |
+
+Other SDRAM users, none of which touch the window while the menu runs:
+- `load_gba_rom()` / `load_extemu_rom()` write the whole `0x08000000+` ROM area. That is the launch
+  point of no return (it also destroys fonts and assets). If a load fails after it started
+  writing, the payload may be corrupt: the firmware re-validates the payload header on every entry
+  and falls back to the stock UI (`slot_host.c`). The header check is magic/ABI/range only, not a
+  checksum; add one if hardware shows a failed-load case that survives the check.
+- `sdram_test()` (Tools) overwrites and restores all 32 MiB; it only runs on user request.
+- `flash.c` maps firmware flash over `0x08000000` while programming (SDRAM unmapped then).
+- `rom_boot.S` bounces through IWRAM `0x03004000-0x030047FF`, which overlaps the payload IWRAM
+  range, but only during boot, long before the payload is ever copied to IWRAM.
+
+**Boot unpack safety (SD boot).** The fork's `superfw.gba` sits at `0x08000000` while `rom_boot`
+runs and is at most `FW_MAX_SIZE_KB` = 2 MiB (build guard). The payload is copied to
+`0x08B80000`, 9.5 MiB above the highest possible source byte; `common.h` has a
+`_Static_assert(SLOT_OFF_WINDOW >= FW_MAX_SIZE_KB * 1024)`. The existing destinations
+(fonts, hiscratch, patch DB, assets) are all >= `0x08E80000`.
+
+**Chosen window: `0x08B80000-0x08E7FFFF` (3 MiB)**, carved out of `t_sdram_state` by lowering
+`BROWSER_MAXFN_CNT` from 16384 to 12288 (`config.h`, one marked line). `sizeof(t_sdram_state)`
+is then 11,791,916 B, asserted `<= SLOT_OFF_WINDOW` in `menu.c`. Cost: a single folder listing
+shows at most 12,288 entries instead of 16,384 (stock browser only; the carousel will have its
+own scan cap). Layout (numbers in `src/slot/slot_layout.h`, shared by C, cpp'd linker scripts
+and `rom_boot.S`):
+
+| Sub-region | Address | Size | Content |
+|---|---|---|---|
+| payload image | `0x08B80000` | 256 KiB max | header, text, rodata, IWRAM load image, .data load image |
+| mailbox | `0x08BC0000` | 4 KiB | `struct slot_mailbox` (launch size + path) |
+| statics | `0x08BC1000` | 64 KiB | payload `.data`/`.bss` |
+| scratch | `0x08BD1000` | 2.69 MiB | back buffer (75 KiB), art cache, pack (M2) |
+
+Alternative considered and not taken: keep `0x09800000-0x09BFFFFF` (4 MiB, truly free) and have the
+host FatFs wrappers switch the SD interface off after every call. Rejected for M1: every pointer
+the payload passes to FatFs (FIL, DIR, FILINFO, read buffers) would have to live outside
+`0x09xxxxxx` and reads would need bounce buffers; payload statics also live in SDRAM
+(ADR-0005), so it is an easy rule to break silently. Revisit if the 3 MiB window proves too small
+(the M2 art pack, 360 KB uncompressed, fits easily).
+
+**IWRAM.** Firmware `.data/.bss/.iwram` ends at `0x03002CD8` (11,480 B). The payload's hot code runs
+from `0x03003000-0x03004FFF` (8 KiB max, 36 B used by the stub): above the firmware, inside the
+stack headroom (the user stack grows down from `0x03007F00`, so >= 12 KiB of stack remains
+while the payload runs). The payload copies its own `.iwram` there in `slot_entry()` on every
+entry, so nothing needs to survive while the stock UI runs. `gba_ewram.ld` asserts
+`__IWRAM_END__ <= 0x03003000`.
+
+**ABI (D2 refinement).** `open_file()` and `enter_stock_ui()` are not host calls: the payload
+returns `SLOT_LAUNCH` (path and size in the mailbox) or `SLOT_STOCK_UI`, and the firmware does
+the work after restoring video (D3/D4). The API struct carries `abi_version` + `struct_size` +
+`sizeof(FIL/DIR/FILINFO)`; both sides check them. Video state is restored by the firmware
+(`menu_slot_restore_video()`: it re-runs `setup_video()` plus the video half of `menu_init()`),
+not saved by the payload, because the BG scroll/affine/window/blend registers are write-only
+on GBA and cannot be read back.
 
 ### D6. Preview ROM = same payload + stub host
 `make preview` (via `./build.sh preview`) links `src/slot/` against `src/slot/preview_host.c`.
@@ -177,10 +264,14 @@ Files from `vendor/slot-advance/common/` are copied into `src/slot/`.
 
 ## Open Questions
 
-- Which mGBA headless/scripting mechanism works on macOS Homebrew mGBA 0.10.5? (M1 spike.)
-- Exact free SDRAM window: confirm `0x09800000–0x09DFFFFF` is never touched while the menu runs,
-  including by the patch engine and the recent list. (M1 task.)
-- Does stock SuperFW's popup flow give a clean "popup dismissed" hook, or does `menu.c` need a
+- ~~Which mGBA headless/scripting mechanism works?~~ RESOLVED (task 2.1): Homebrew mGBA has no `--script`;
+  `libmgba-dev` 0.10.5 in the Docker image plus `tools/mgba_shots.c` works headless.
+- ~~Exact free SDRAM window~~ RESOLVED (task 3.1): `0x09800000-0x09DFFFFF` is unusable (patch DB at
+  `0x09D00000`, and the whole `0x09xxxxxx` half is shadowed by the SD interface). The window is
+  `0x08B80000-0x08E7FFFF`; see "SDRAM map (audited)".
+- (Answered in 3.6: `menu_popup_active()` polled by `slot_poll()` each frame; no callback needed. Select is
+  already used by stock on Recent/Browse/NOR, so return-to-carousel works only from Settings/UI/Tools/Info.)
+  Original question: Does stock SuperFW's popup flow give a clean "popup dismissed" hook, or does `menu.c` need a
   small callback? (M1 task; prefer a one-line hook.)
 - Is the slot. advance on-card `/SYSTEM/SLOT` format stable across v1.2.x? (M2 task: pin and test
   with `convert_labels.py` output.)

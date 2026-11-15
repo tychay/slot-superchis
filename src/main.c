@@ -28,6 +28,7 @@
 #include "common.h"
 #include "fatfs/ff.h"
 #include "flash.h"
+#include "slot/slot_host.h"   // slot:
 
 // Global variables
 FATFS sdfs;          // FatFS mounted filesystem
@@ -183,6 +184,9 @@ static int main_gba() {
   // Initialize menu, start displaying some UI to the user.
   menu_init(sram_tres);
 
+  // slot: the carousel is the home screen (design D3); it returns to stock video state.
+  slot_enter();
+
   menu_render(1);
   menu_flip();
 
@@ -191,6 +195,9 @@ static int main_gba() {
     uint16_t mkeys = get_keypress();
     if (mkeys)
       menu_keypress(mkeys);
+
+    if (slot_poll())   // slot: carousel re-entry (Select on a stock tab / popup dismissed)
+      prev_frame = frame_count;
 
     unsigned cframe = frame_count;
     menu_render(frame_count - prev_frame);

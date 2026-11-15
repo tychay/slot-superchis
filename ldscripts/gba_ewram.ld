@@ -220,5 +220,9 @@ SECTIONS
     /* No heap defined nor used here */
 }
 
+#include "../src/slot/slot_layout.h"
+/* slot: the payload's IWRAM window must stay clear of the firmware's data/bss/iwram. */
+ASSERT(__IWRAM_END__ <= SLOT_IWRAM_BASE, "firmware IWRAM grew into the slot payload IWRAM window")
+
 #include "validate.inc"
 

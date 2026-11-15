@@ -26,7 +26,7 @@
 // Config config maximum values here and there
 #define MAX_FN_LEN                 256
 #define FLASHG_MAXFN_CNT           32            // No more than 32 games in NOR
-#define BROWSER_MAXFN_CNT     (16*1024)
+#define BROWSER_MAXFN_CNT     (12*1024)   // slot: was 16*1024; frees ~3MiB of SDRAM for the slot window (common.h)
 #define RECENT_MAXFN_CNT          (200)
 
 #define MAX_BACKUP_CNT             16

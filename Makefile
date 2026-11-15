@@ -103,6 +103,18 @@ DIRECTSAVE_CFLAGS=-Os -ggdb \
                  -Wall -Isrc -I. \
                  -marm -flto -fPIC
 
+# slot: the carousel payload (ADR-0004). Freestanding thumb code at a fixed SDRAM address; links no
+# firmware symbols and no libc/libgcc (-nostdlib turns any stray reference into a link error).
+SLOT_CFLAGS=-Os -ggdb \
+            $(BASEFLAGS) \
+            -Wall -Wextra -Isrc -I. \
+            -mthumb -ffreestanding -fno-builtin -fno-tree-loop-distribute-patterns
+
+SLOT_PAYLOAD_OFFSET=12058624   # == SLOT_OFF_PAYLOAD (0x00B80000, src/slot/slot_layout.h)
+
+SLOTFILES=src/slot/payload_entry.c \
+          src/slot/slot_stub.c
+
 FATFSFILES=fatfs/diskio.c \
            fatfs/ff.c \
            fatfs/ffsystem.c \
@@ -166,9 +178,10 @@ INFILES=src/gba_ewram_crt0.S \
         src/heapsort.c \
         src/nanoprintf.c \
         src/fonts/font_render.c \
+        src/slot/slot_host.c \
         ${FATFSFILES}
 
-all:	$(FWBINFILES) $(BIEMUFILES) directsave.payload ingame_trampoline.payload
+all:	$(FWBINFILES) $(BIEMUFILES) directsave.payload ingame_trampoline.payload slot.payload
 	# Wrap the firmware around a ROM->EWRAM loader
 	$(CC) $(CFLAGS) -o firmware.elf rom_boot.S -T ldscripts/gba_romboot.ld -nostartfiles -nostdlib -Wl,--defsym,MAX_FLASH_SIZE=$(MAXFSIZE)K
 	$(OBJCOPY) --output-target=binary firmware.elf superfw.gba
@@ -199,6 +212,23 @@ ingamemenu.payload:	$(MENUFILES) src/menu_messages.h
 	$(CC) $(INGAME_CFLAGS) -o ingamemenu.elf $(MENUFILES) -T ldscripts/gba_ingame.ld \
 			-nostartfiles -fno-builtin -Wl,-Map=firmware.ingame.map -Wl,--print-memory-usage
 	$(OBJCOPY) --output-target=binary ingamemenu.elf ingamemenu.payload
+
+# slot: carousel payload
+slot.payload:	$(SLOTFILES) src/slot/slot_host_api.h src/slot/slot_layout.h ldscripts/slot_payload.ld.i
+	$(CC) $(SLOT_CFLAGS) -o slot.elf $(SLOTFILES) -T ldscripts/slot_payload.ld.i \
+			-nostartfiles -nostdlib -Wl,-Map=slot.map -Wl,--print-memory-usage
+	$(OBJCOPY) --output-target=binary slot.elf slot.payload
+
+ldscripts/slot_payload.ld.i ldscripts/gba_ewram.ld.i:	src/slot/slot_layout.h
+
+# slot: emulator smoke test: a throwaway host (tools/slot_smoke_host.c) + slot.payload placed at
+# its SDRAM address inside one ROM image. Not part of `all`; use with tools/preview_shots.sh.
+slot-smoke.gba:	slot.payload tools/slot_smoke_host.c ldscripts/slot_smoke.ld
+	$(CC) $(SLOT_CFLAGS) -o slot-smoke-host.elf tools/slot_smoke_host.c -T ldscripts/slot_smoke.ld -nostartfiles -nostdlib
+	$(OBJCOPY) --output-target=binary slot-smoke-host.elf slot-smoke-host.bin
+	cp slot-smoke-host.bin $@
+	truncate -s $(SLOT_PAYLOAD_OFFSET) $@
+	cat slot.payload >> $@
 
 ingame_trampoline.payload:	src/ingame_trampoline.S
 	$(CC) $(BASEFLAGS) -nostartfiles -T ldscripts/gba_ingametramp.ld -o ingame_trampoline.elf src/ingame_trampoline.S

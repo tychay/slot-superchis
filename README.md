@@ -53,6 +53,15 @@ The build fails if `superfw.gba` grows beyond 2,048 KB (override with
 `./build.sh BOARD=chis COMPRESSION_RATIO=10 SLOT_MAX_IMAGE_KB=<kb>`). The fork milestone shown on
 the Info tab is `SLOT_MILESTONE` at the top of the `Makefile`.
 
+## Development builds between M0 and M1
+
+Builds made from `main` during M1 (payload infrastructure, not yet a release) differ from M0:
+
+- after the splash, a solid **orange stub screen** is shown (the empty carousel payload, `slot.payload`);
+  press any key to reach the stock SuperFW UI. On the Settings/UI/Tools/Info tabs, Select returns to the stub.
+- the stock file browser lists at most 12,288 entries per folder (was 16,384): SDRAM was needed for the
+  payload window (see `openspec/changes/add-slot-carousel/design.md`, "SDRAM map (audited)").
+
 ## Hardware test checklist (M0)
 
 Boot the file from stock SuperFW, then confirm:

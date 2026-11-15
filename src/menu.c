@@ -38,6 +38,7 @@
 #include "flash.h"
 #include "sha256.h"
 #include "supercard_driver.h"
+#include "slot/slot_host.h"   // slot:
 
 #include "res/icons.h"
 #include "res/logo.h"
@@ -391,6 +392,8 @@ typedef struct {
 } t_sdram_state;
 
 _Static_assert (sizeof(t_sdram_state) <= 14.5*1024*1024, "scratch SDRAM doesn't exceed 14.5MB");
+// slot: t_sdram_state must end below the slot payload window (common.h / slot_layout.h).
+_Static_assert (sizeof(t_sdram_state) <= SLOT_OFF_WINDOW, "t_sdram_state overlaps the slot SDRAM window");
 
 t_sdram_state *sdr_state = (t_sdram_state*)0x08000000;
 uint8_t *hiscratch = (uint8_t*)ROM_HISCRATCH_U8;
@@ -1080,6 +1083,16 @@ NOINLINE static void browser_open(const char *fn, uint32_t fs) {
       }
     }
   }
+}
+
+// slot: non-static entry for the carousel hand-off (design D3): same as picking `fn` in the browser.
+void menu_open_file(const char *fn, uint32_t fs) {
+  browser_open(fn, fs);
+}
+
+// slot: true while any popup, alert or dialog is up; the carousel resumes once all are dismissed.
+bool menu_popup_active(void) {
+  return spop.pop_num || spop.alert_msg || spop.qpop.message || spop.rtcpop.callback;
 }
 
 static void browser_reload_sort() {
@@ -2164,6 +2177,28 @@ void menu_init(int sram_testres) {
   if (sram_testres >= 0)
     spop.alert_msg = sram_testres ? msgs[lang_id][MSG_SRAMTST_FAIL] :
                                     msgs[lang_id][MSG_SRAMTST_OK];
+}
+
+// slot: re-establish the stock video state after the carousel payload (Mode 3) returns (D4).
+// Mirrors the video half of main_gba()+menu_init(): setup_video() blanks/clears VRAM and palette
+// and selects Mode 4; the rest re-uploads icons/palette and rewrites the registers menu_init sets.
+// Keep in sync with menu_init() when merging upstream.
+void menu_slot_restore_video(void) {
+  setup_video();
+  reload_theme(menu_theme);
+  dma_memcpy16(MEM_VRAM_OBJS, icons_img, sizeof(icons_img) / 2);
+  dma_memcpy16(&MEM_PALETTE[256], icons_pal, sizeof(icons_pal) / 2);
+  dma_memset16(&MEM_VRAM_OBJS[63 * 256], dup8(SEL_COLOR), 256 / 2);
+  *(volatile uint16_t *)0x0400000C = 0;     // BG2CNT, as the bootloader leaves it
+  REG_BG2PA = 0x0100; REG_BG2PB = 0; REG_BG2PC = 0; REG_BG2PD = 0x0100;
+  REG_BG2X = 0; REG_BG2Y = 0;
+  REG_WININ  = 0x0004;
+  REG_WINOUT = 0x0014;
+  REG_WIN0H = 0;
+  REG_WIN0V = 0;
+  REG_DISPCNT |= 0x2000;
+  REG_BLDCNT = 0x1F40;
+  REG_BLDALPHA = 0x0808;
 }
 
 int movedir_up() {
@@ -3296,6 +3331,10 @@ void menu_keypress(unsigned newkeys) {
       keypress_menu_info,
     };
     keyfns[smenu.menu_tab](newkeys);
+
+    // slot: Select on Settings/UI/Tools/Info (the tabs that do not use it) returns to the carousel.
+    if (smenu.menu_tab >= MENUTAB_SETTINGS && (newkeys & KEY_BUTTSEL))
+      slot_request_carousel();
   }
 }
 

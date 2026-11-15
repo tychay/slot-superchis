@@ -46,6 +46,9 @@
 #define BOOTNDS_SP9_IRQ  0x023FFC80     /* From 0x023FFC00 to 0x023FFC80 */
 #define BOOTNDS_SP9_SYS  0x023FFC80     /* From 0x023FF800 to 0x023FFC00 */
 
+/* slot: SLOT_PAYLOAD_ADDR */
+#include "src/slot/slot_layout.h"
+
 #define FWPAYLOAD_ADDR   0x027C0000
 
 #define NDS_HEADER_ADDR  0x027FFE00
@@ -355,6 +358,14 @@ _main_end:
   ldr r0, =assets_start
   mov r1, $ASSETS_ADDR
   mov r2, $((assets_end - assets_start + 2047) / 2048)
+  bl sdram_copy
+
+  @ slot: copy the carousel payload (uncompressed) to its SDRAM window. The window lies far
+  @ above the boot image (<= FW_MAX_SIZE_KB at 0x08000000; asserted in common.h), so the copy
+  @ can never overwrite its own source. Whole 2KiB blocks, like the other assets.
+  ldr r0, =slot_payload_start
+  ldr r1, =SLOT_PAYLOAD_ADDR
+  mov r2, $((slot_payload_end - slot_payload_start + 2047) / 2048)   @ <= 128 (SLOT_PAYLOAD_MAX)
   bl sdram_copy
 
   @ Now we can proceed to unpack the firmware to EWRAM
@@ -770,4 +781,9 @@ assets_end:
   .incbin "ingame_trampoline.payload"
 #endif
 
-
+@ slot: carousel payload, appended after everything else (so the NOR .org offsets above are
+@ untouched). Not compressed yet (design D5/6.1); the 2MiB image cap is checked by the Makefile.
+slot_payload_start:
+  .incbin "slot.payload"
+  .balign 4
+slot_payload_end:
