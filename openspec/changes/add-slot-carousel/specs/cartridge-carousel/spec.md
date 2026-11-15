@@ -80,8 +80,15 @@ No SuperFW feature may become unreachable.
 - **THEN** the carousel reappears with the previous selection
 
 ### Requirement: Remember position
-The carousel SHALL persist the last shelf and selected cart per shelf to
-`/SYSTEM/SLOT/SETTINGS.TXT` before launching a game, and restore them at boot.
+The carousel SHALL persist the last shelf, the selected cart per shelf and the theme to
+`/SYSTEM/SLOT/SETTINGS.TXT` before launching a game and after about two seconds without input
+following a change, and restore them at boot. It MUST NOT write the card while the user is
+navigating.
+
+#### Scenario: Position restored without launching (hardware)
+- **WHEN** the user moves to another shelf and cart, changes theme, waits a few seconds, then
+  power-cycles and re-launches the fork
+- **THEN** the carousel opens on that shelf and cart with that theme
 
 #### Scenario: Position restored (hardware)
 - **WHEN** the user launches the 5th GB cart, then power-cycles and re-launches the fork

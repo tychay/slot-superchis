@@ -30,8 +30,9 @@ Not part of the `add-slot-carousel` change (M0 to M2). Source: `openspec/changes
       screen for that file, with its ROM info. Uses: diagnostics for GB/GBC (which launch
       directly today, so their info screen is unreachable from the carousel) and the fallback
       route once GBA launches directly. Later entries could pick the GB core or patch options.
-- [ ] Optional: persist shelf/position on shelf switch, not only on launch (power-cycle without
-      launching currently restores the last launched cart). Weigh against extra SD writes.
+- [ ] Art prefetch: on fast GB/GBC scrolling some carts show white briefly before their label
+      streams in (whole-cart BMPs are larger than GBA flat carts). Prefetch further ahead or
+      stream more rows per frame when the motion is fast.
 - [ ] **Before going public:** `tests/fixtures/art/` and the preview ROM contain real Cart Studio
       label art (commercial box art) from the author's card. Replace with fictional labels
       (vendor `tools/make_examples.py` style) and purge them from git history before pushing.

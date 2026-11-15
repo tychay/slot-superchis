@@ -453,8 +453,10 @@ static unsigned Slot_Play(void)
     return 1;
 }
 
+#define SLOT_SAVE_IDLE_FRAMES 120u   /* ~2 s without input before settings are saved */
 static int Slot_Run(unsigned boot)
 {
+    unsigned idle_since;
     unsigned nav_index,steps,redraw=1;int pose=0,last_pose=0,last_base=0;
     /* Blank, black, Mode 3: nothing of the stock Mode 4 screen may show through. */
     SLOT_DISPCNT=SLOT_FORCE_BLANK|SLOT_MODE3_BG2;SLOT_BLDCNT=0x00ff;SLOT_BLDY=16;
@@ -502,7 +504,7 @@ static int Slot_Run(unsigned boot)
     }
     Slot_Show((int)Slot_Index(),0,1);
     Slot_ResumeNav(slot_count,Slot_Index(),slot_wrap,slot_animations);
-    redraw=0;last_base=(int)Slot_Index();
+    redraw=0;last_base=(int)Slot_Index();idle_since=slot_vblanks;
     while(1) {
         unsigned down,art_changed=slot_art_changed;int base,fraction,modal=0;
         slot_art_changed=0;
@@ -531,6 +533,13 @@ static int Slot_Run(unsigned boot)
         } else Slot_WaitFrame();
         /* Keep the neighbours' labelled carts ready; cheap when nothing changed. */
         if(slot_count)Slot_StreamArt(base+(fraction>=128));
+        /* Remember shelf, position and theme once the user has paused for ~2 s (one small SD write
+           per pause, none while navigating or while art streams, which shares slot_file). A failed
+           save is retried after the next pause, never every frame. */
+        if(down || Slot_Held() || pose)idle_since=slot_vblanks;
+        else if(slot_cfg_dirty && !slot_art_active && slot_vblanks-idle_since>=SLOT_SAVE_IDLE_FRAMES) {
+            Slot_SaveConfig();idle_since=slot_vblanks;
+        }
     }
 }
 

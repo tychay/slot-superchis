@@ -21,7 +21,7 @@ At **M2** the fork boots to a cartridge carousel instead of SuperFW's file brows
   Goombacolor;
 - Select opens SuperFW's stock UI (Recent, Browse, Settings, Tools, Info), so nothing in SuperFW
   becomes unreachable;
-- the last shelf and the selected cart of each shelf are remembered.
+- the last shelf, the selected cart of each shelf and the theme are remembered (saved when you launch a game, or a couple of seconds after you stop pressing buttons).
 
 Not yet (see `TODO.md`): the slot.-style settings screen, return-to-carousel after a game exits,
 other systems.
@@ -184,7 +184,7 @@ Boot the file from stock SuperFW, then confirm:
 - [ ] B in the load popup returns to the carousel with the same cart selected.
 - [ ] Select shows stock Settings/Info and they work; Select (on Settings/UI/Tools/Info) returns to
       the carousel.
-- [ ] The position (shelf and cart) is restored after a power cycle.
+- [ ] Change shelf, cart and theme, wait a few seconds, power-cycle: all three are restored.
 - [ ] After an in-game exit, the stock Recent tab shows the fork `.gba` first (task 4.9: carousel
       launches are not added to the recent list).
 - [ ] The stock file browser still lists files correctly (SDRAM sanity check).
