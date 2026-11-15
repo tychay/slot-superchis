@@ -471,7 +471,7 @@ static int Slot_Run(unsigned boot)
         volatile uint16_t *v=SLOT_VRAM;unsigned i;
         SLOT_BLDCNT=0;SLOT_BLDY=0;for(i=0;i<240*160;i++)v[i]=0;
         SLOT_DISPCNT=SLOT_MODE3_BG2;
-        SLOT_DIAG_BEGIN(0);Slot_DiagSelfTest(slot_background);SLOT_DIAG_END(0);
+        SLOT_DIAG_BEGIN(0);Slot_DiagSelfTest((const uint16_t*)SLOT_PACK_ADDR);SLOT_DIAG_END(0);
         SLOT_DIAG_BEGIN(1);Slot_Background();SLOT_DIAG_END(1);
         SLOT_DIAG_BEGIN(2);Slot_Front();SLOT_DIAG_END(2);
         SLOT_DIAG_BEGIN(3);Slot_Centred("Reading shelf...",73,SLOT_INK);SLOT_DIAG_END(3);
