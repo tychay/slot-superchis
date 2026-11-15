@@ -84,16 +84,21 @@ a **"Download"** `labels.zip` instead of writing to the card. The steps:
 1. Open studio.slot-cfw.fyi in Chrome or Edge and choose the card (or any folder with
    `Games/GBA`, `Games/GB`, `Games/GBC` in it) so it can match your ROMs. Make your labels.
 2. Choose **Download for slot. advance** (not "Write to card") and save `labels.zip`.
-3. Convert it into the card's `SYSTEM/SLOT` folder. On macOS or Linux, with Docker running:
+3. Convert it into the card's `SYSTEM/SLOT` folder. On macOS or Linux, with Docker running, get
+   this repository (with its `vendor/slot-advance` submodule, which holds the converter) and run
+   the wrapper:
 
    ```sh
-   tools/convert_labels.sh labels.zip /Volumes/SUPERCHIS      # the card root, the folder that holds Games/
+   git clone --recursive https://github.com/tychay/slot-superchis.git
+   cd slot-superchis
+   tools/convert_labels.sh ~/Downloads/labels.zip /Volumes/SUPERCHIS   # the card root, the folder that holds Games/
    ```
 
    This runs the vendored slot. advance converter in the build container, reads the ROM headers in
    `Games/` to pick each cart's shell colour and outline, and writes `SYSTEM/SLOT/CARTS`,
-   `CARTS_FLAT` and `LABELS` onto the card. On Windows use slot. advance's `Convert Labels.bat`
-   / Label Converter.exe (in `vendor/slot-advance/`) pointed at `labels.zip` and the card.
+   `CARTS_FLAT` and `LABELS` onto the card. On Windows, download slot. advance's
+   release from https://github.com/FrankieT19/slot-advance/releases and run its Label Converter
+   on the card; it produces the same `SYSTEM/SLOT` files.
 4. Put the card in the cart and boot the fork. Art streams in while you scroll (a cart may show
    its plain silhouette for a few frames first). To use the flat look, set `Skeuomorphic=0` in
    `SYSTEM/SLOT/SETTINGS.TXT`.
