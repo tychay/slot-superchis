@@ -143,6 +143,11 @@ static int main_gba() {
 
   // Video is configured in Mode 4 with the logo rendered on the screen.
 
+  // slot: M0 boot splash (replaced by the carousel splash in M1).
+  display_info_msg("slot. superchis");
+  wait_ms(1500);
+  display_info_clear();
+
   // Setup the ROM mapping to allow SD driver. Allow SDRAM usage (as buffer)
   set_supercard_mode(MAPPED_SDRAM, true, true);
 

@@ -1,6 +1,9 @@
 
 VERSION_WORD := 0x00000016
 VERSION_SLUG_WORD := $(shell git rev-parse --short=8 HEAD || echo FFFFFFFF)
+# slot: fork milestone, shown on the Info screen as "slot.<milestone>". Bump here only.
+SLOT_MILESTONE := M0
+SLOT_MAX_IMAGE_KB ?= 2048
 
 PREFIX		:= arm-none-eabi-
 CC		:= $(PREFIX)gcc
@@ -77,6 +80,7 @@ CFLAGS=-O2 -ggdb \
        -DSD_PREERASE_BLOCKS_WRITE \
        -DVERSION_WORD="$(VERSION_WORD)" \
        -DVERSION_SLUG_WORD="0x$(VERSION_SLUG_WORD)" \
+       -DSLOT_VERSION_SUFFIX="\"slot.$(SLOT_MILESTONE)\"" \
        -Wall -Isrc -I. -mthumb -flto -flto-partition=none
 
 
@@ -170,6 +174,9 @@ all:	$(FWBINFILES) $(BIEMUFILES) directsave.payload ingame_trampoline.payload
 	$(OBJCOPY) --output-target=binary firmware.elf superfw.gba
 	# Fix the header/checksum.
 	./tools/fw-fixer.py superfw.gba
+	# slot: size guard (ADR-0005), fail the build if the image exceeds SLOT_MAX_IMAGE_KB.
+	@sz=$$(wc -c < superfw.gba); max=$$(( $(SLOT_MAX_IMAGE_KB) * 1024 )); \
+	  if [ $$sz -gt $$max ]; then echo "slot: superfw.gba is $$sz bytes, exceeds $$max ($(SLOT_MAX_IMAGE_KB) KB)"; exit 1; fi
 
 firmware.ewram.gba: $(INFILES) ingamemenu.payload superfw.dldi.payload directsave.payload ingame_trampoline.payload src/messages_data.h ldscripts/gba_ewram.ld.i
 	# Build the actual firmware image

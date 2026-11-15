@@ -7,3 +7,10 @@
 *.gcno
 *.info
 *.i
+
+# slot.: generated/build outputs not covered above
+src/menu_messages.h
+src/messages_data.h
+build/
+slot-preview.gba
+*.pack
