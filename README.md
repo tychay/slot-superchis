@@ -125,7 +125,7 @@ the 5,000-entry / 255-byte-name large-library cases) and `tests/slot_settings_te
 
 Boot the file from stock SuperFW, then confirm:
 
-- [ ] The "slot." splash appears, then the carousel with shelves and sort order as expected
+- [ ] The "slot." splash appears, then a "Reading shelf..." screen (stays visible if the read hangs), then the carousel with shelves and sort order as expected
       (alphabetical, case-insensitive, per `Games/GBA`, `GB`, `GBC`).
 - [ ] Navigation is smooth (Left/Right, hold to repeat, L/R shelves); note any stutter.
 - [ ] Advance Wars launches from the carousel; save in-game, exit, relaunch: the save is intact.

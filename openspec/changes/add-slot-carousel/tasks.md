@@ -52,7 +52,32 @@
 - [x] 5.1 Add `src/slot/preview_host.c` (stub API: fictional library of ~8 titles per shelf, one empty-shelf toggle) and a `preview` make target producing `slot-preview.gba` (via `./build.sh preview`). Check: it builds; `tools/preview_shots.sh` captures a non-blank carousel. (checked: `./build.sh clean && ./build.sh preview` exits 0 -> slot-preview.gba (178,888 B); tools/preview_shots.sh captures the non-blank carousel; modes via keys held at start: Up stress, Down empty, Left no Games)
 - [x] 5.2 Update README: M1 controls (Left/Right, L/R, A, Select ↔ stock UI), M1 hardware checklist, developer section on the preview ROM and screenshot harness. Check: README matches the current behaviour. (checked: README rewritten for M1: controls, M1 hardware checklist (same text as 5.4), developer section, limitations)
 - [x] 5.3 Copy the build to the mirror as `slot-superchis-M1.gba`, remove the M0 file, sync to the card if mounted (CLAUDE.md order). Check: on card. (checked: mirror holds slot-superchis-M1.gba (cmp identical to superfw.gba, 1,847,296 B), slot-superchis-M1-stub.gba removed, M0 kept; the card is synced by the orchestrator, not touched here)
-- [ ] 5.3b **Hardware fix (ADR-0010)**: first M1 boot on hardware hung on a white (force-blanked) screen after the splash. Cause: byte stores (`strb`) into SuperCard SDRAM, which only takes 16/32-bit writes. Move payload `.data`/`.bss` into IWRAM (window 12 KiB, `0x03003000–0x03005FFF`); make every store into SDRAM scratch/mailbox 16/32-bit (name pool, launch path, firmware mailbox writes); keep the display on with visible "Reading shelf..." during the boot scan instead of forced blank. Check: clean build + slot-tests + preview pass; objdump audit of every remaining `strb` in slot.elf shows no SDRAM destination (listed in this task); linker asserts for the 12 KiB window and stack floor.
+- [x] 5.3b (ADR-0010)**: first M1 boot on hardware hung on a white (force-blanked) screen after the splash. Cause: byte stores (`strb`) into SuperCard SDRAM, which only takes 16/32-bit writes. Move payload `.data`/`.bss` into IWRAM (window 12 KiB, `0x03003000–0x03005FFF`); make every store into SDRAM scratch/mailbox 16/32-bit (name pool, launch path, firmware mailbox writes); keep the display on with visible "Reading shelf..." during the boot scan instead of forced blank. Check: clean build + slot-tests + preview pass; objdump audit of every remaining `strb` in slot.elf shows no SDRAM destination (listed in this task); linker asserts for the 12 KiB window and stack floor.
+  Checks (all run in docker/build image): `./build.sh clean && ./build.sh` OK, `superfw.gba` 1,847,808 B; `slot.payload` image 176,004 B (0x2AF84, 67% of 256 KiB); payload IWRAM total `.iwram` 0xC60 + `.data` 0x14 + `.bss` 0x180C = 9,348 B of 12,288 (76%); payload EWRAM 0 B; firmware IWRAM 11,480 B / EWRAM 236,312 B (91.94%); gba_ewram.ld assert (firmware IWRAM end <= 0x03003000) still holds and still makes sense (window base unchanged, only its size grew). `./build.sh slot-tests` passes, incl. new `slot_sdram_store` (odd/even offsets and lengths, neighbours untouched) and pool even-offset tests. `./build.sh preview` + `tools/preview_shots.sh slot-preview.gba ...` (`build/shots/5.3b_*.png`): boot and GB-shelf shots byte-identical to the earlier `4.4_boot.png` / `4.4_R_gb.png`. Code changes: `slot_layout.h` (statics sub-region retired, scratch now 0x08BC1000 + 0x2BF000, IWRAM 12 KiB), `slot_payload.ld`/`slot_preview.ld` (.data/.bss in IWRAM, ASSERT on the sum), new `src/slot/slot_sdram.h` (`slot_sdram_store`, halfword RMW), `slot_scan.c` (names built in a stack buffer, padded to even length, copied with the helper), `slot_frontend.c` (launch path staged in IWRAM `slot_launch`, then `slot_sdram_store` into the mailbox; "Reading shelf..." shown, display on, before ReadConfig/CheckLibrary/Scan; no black fade between), `slot_host.c` (mailbox terminators are halfword stores).
+
+  objdump audit of `slot.elf` after the change (every function with `strb`; hardware not re-tested, only the user can):
+
+  | function | store destination | verdict |
+  |---|---|---|
+  | slot_scan | `name[]` on the stack (name[len+1] pad); pool written only via `slot_sdram_store` (halfword) | OK / fixed |
+  | slot_main (inlined Slot_Play) | `slot_launch[length+1]` IWRAM static; mailbox via `slot_sdram_store` | OK / fixed |
+  | Slot_NextEntry | caller's `name` (slot_scan stack); `slot_info` (FILINFO) is an IWRAM static, written by FatFs in firmware | OK |
+  | slot_title_from_name | `slot_line` (IWRAM static) or tests' stack | OK |
+  | slot_ellipsize | `slot_title` (IWRAM static) | OK |
+  | Slot_ReadTitle | `slot_title[0]` IWRAM static | OK |
+  | Slot_Append | `slot_notice`, `slot_right`, `slot_launch` (all IWRAM statics); no longer the mailbox | OK / fixed |
+  | Slot_Utoa | `slot_notice`, `slot_right` (IWRAM statics) | OK |
+  | slot_settings_parse | `slot_cfg` (IWRAM static) and stack temporaries; input `slot_cfg_text` is IWRAM | OK |
+  | slot_settings_format | `slot_cfg_text` (IWRAM static) | OK |
+  | Slot_RecordSpan | `slot_next_covered` rows (IWRAM statics) | OK |
+  | Slot_RecordCart | `inverse[]` on the stack + Slot_RecordSpan | OK |
+  | Slot_BeginShelf | `slot_next_covered[y].count` (IWRAM statics) | OK |
+  | Slot_Image | `inverse[]` on the stack (pixels go to `slot_frame` with halfword stores / DMA) | OK |
+  | Slot_FillCacheAround | inlined Slot_RegisterOpaque: `slot_spans` left/right (IWRAM statics); cache pixels are halfword stores | OK |
+  | memcpy | callers: slot_ellipsize (-> slot_title IWRAM), slot_settings_defaults (-> `slot_cfg` IWRAM); slot_scan no longer calls it for the pool | OK |
+  | memset | only caller Slot_DrawShelf, destination `sp`-relative stack arrays | OK |
+  | memmove | no callers in the final link | OK |
+  | put_str | `slot_cfg_text` (via slot_settings_format) | OK |
 - [ ] 5.4 **⛔ HARDWARE CHECKPOINT (M1)**: user verifies shelves and order; smooth navigation (note any stutter); Advance Wars launch, save, relaunch with the save intact; Tetris and Link's Awakening DX launch; B in the load popup returns to the carousel; Select → stock Settings/Info work → Select (on Settings/UI/Tools/Info) → back to the carousel; position restored after power cycle; after an in-game exit, stock Recent tab shows the fork `.gba` first (task 4.9); stock file browser still lists files correctly (SDRAM sanity). STOP until reported. If stutter is reported, fix it (design Risks: IWRAM blitter, WAITCNT, fewer motion frames) before M2.
 
 ## 6. M2 — Art, themes, sound

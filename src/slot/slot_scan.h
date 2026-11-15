@@ -45,7 +45,7 @@ struct slot_shelf {
   uint16_t *order;          /* [SLOT_SHELF_MAX] display position -> entry number */
   uint32_t *name_off;       /* [SLOT_SHELF_MAX] entry number -> offset in pool */
   uint32_t *size;           /* [SLOT_SHELF_MAX] entry number -> file size */
-  char     *pool;
+  char     *pool;           /* names, each NUL padded to an even length; may be SDRAM (16-bit stores only) */
   uint32_t pool_cap, pool_used;
 };
 

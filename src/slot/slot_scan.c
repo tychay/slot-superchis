@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #include "slot/slot_scan.h"
+#include "slot/slot_sdram.h"
 
 #include <string.h>
 
@@ -127,14 +128,16 @@ void slot_scan(struct slot_shelf *s, unsigned platform, unsigned dir_len, slot_n
       s->skipped++;
       continue;
     }
-    if (s->count >= SLOT_SHELF_MAX || s->pool_used + len + 1 > s->pool_cap) {
+    uint32_t stored = (len + 2) & ~1u;           /* NUL + pad to even: pool takes 16-bit stores only (ADR-0010) */
+    if (s->count >= SLOT_SHELF_MAX || s->pool_used + stored > s->pool_cap) {
       s->truncated = 1;                           /* cap reached: stop, do not read the rest */
       break;
     }
-    memcpy(s->pool + s->pool_used, name, len + 1);
+    name[len + 1] = 0;                           /* len < SLOT_PATH_LIMIT-1, so inside `name` */
+    slot_sdram_store(s->pool + s->pool_used, name, stored);
     s->name_off[s->count] = s->pool_used;
     s->size[s->count] = size;
-    s->pool_used += len + 1;
+    s->pool_used += stored;
     s->count++;
   }
   sort_shelf(s);

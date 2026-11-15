@@ -4,8 +4,8 @@
  *
  * Unlike the real payload (ldscripts/slot_payload.ld), which lives in the writable SDRAM window,
  * this image is an ordinary ROM at 0x08000000 (read-only in an emulator): code and rodata stay in
- * ROM, the payload's statics (.data/.bss) and the scratch buffers live in EWRAM, and the hot-code
- * .iwram section is copied to the same IWRAM range as on hardware by slot_entry().
+ * ROM, the scratch buffers live in EWRAM, and the hot-code .iwram section plus the payload's statics
+ * (.data/.bss) are linked to the same IWRAM window as on hardware (ADR-0010).
  * The preview host's own variables go in .hostbss, which slot_entry() does not zero.
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -64,7 +64,7 @@ SECTIONS
         *(.data.*)
         . = ALIGN(4);
         __data_end = .;
-    } > EWRAM AT > ROM
+    } > IWRAM AT > ROM
 
     .bss (NOLOAD) : ALIGN(4)
     {
@@ -74,7 +74,7 @@ SECTIONS
         *(COMMON)
         . = ALIGN(4);
         __bss_end = .;
-    } > EWRAM
+    } > IWRAM
 
     /* Everything left of EWRAM is the scratch memory handed to the payload. */
     .scratch (NOLOAD) : ALIGN(4)
@@ -95,4 +95,4 @@ SECTIONS
     /DISCARD/ : { *(.ARM.exidx*) *(.ARM.extab*) *(.comment) }
 }
 
-ASSERT(__iwram_size <= SLOT_IWRAM_SIZE, "slot payload IWRAM section exceeds 8KiB")
+ASSERT(__bss_end - __iwram_start <= SLOT_IWRAM_SIZE, "slot payload .iwram+.data+.bss exceed the 12KiB IWRAM window (ADR-0010)")

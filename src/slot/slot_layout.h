@@ -21,22 +21,24 @@
 #define SLOT_PAYLOAD_MAX          0x00040000     /* 256KiB */
 #define SLOT_OFF_MAILBOX          0x00BC0000     /* host<->payload mailbox */
 #define SLOT_MAILBOX_SIZE         0x00001000     /* 4KiB */
-#define SLOT_OFF_STATICS          0x00BC1000     /* payload .bss / statics */
-#define SLOT_STATICS_SIZE         0x00010000     /* 64KiB */
-#define SLOT_OFF_SCRATCH          0x00BD1000     /* payload buffers: back buffer, art cache, ... */
-#define SLOT_SCRATCH_SIZE         0x002AF000     /* up to the window end */
+#define SLOT_OFF_SCRATCH          0x00BC1000     /* payload buffers: back buffer, art cache, ... */
+#define SLOT_SCRATCH_SIZE         0x002BF000     /* up to the window end */
 
 #define SLOT_PAYLOAD_ADDR         0x08B80000
 #define SLOT_MAILBOX_ADDR         0x08BC0000
-#define SLOT_STATICS_ADDR         0x08BC1000
-#define SLOT_SCRATCH_ADDR         0x08BD1000
+#define SLOT_SCRATCH_ADDR         0x08BC1000
 
 /*
- * IWRAM range the payload's hot code is copied into at entry.  It sits above the firmware's
- * .data/.bss/.iwram (asserted by gba_ewram.ld) and inside the stack headroom: the payload is
- * re-copied on every entry, so nothing persists there while the stock UI runs.
+ * No SDRAM statics: the SuperCard SDRAM only takes 16/32-bit stores (ADR-0010), so the payload's
+ * .iwram + .data + .bss all live in this IWRAM window, and every store into SDRAM (scratch,
+ * mailbox) is a halfword/word store (src/slot/slot_sdram.h).
+ *
+ * IWRAM range the payload's hot code and statics are copied/zeroed into at entry.  It sits above
+ * the firmware's .data/.bss/.iwram (asserted by gba_ewram.ld) and inside the stack headroom
+ * (the firmware stack keeps 0x03006000-0x03007F00): the payload is re-entered from scratch every
+ * time, so nothing persists there while the stock UI runs.
  */
 #define SLOT_IWRAM_BASE           0x03003000
-#define SLOT_IWRAM_SIZE           0x00002000     /* 8KiB (ADR-0005) */
+#define SLOT_IWRAM_SIZE           0x00003000     /* 12KiB (ADR-0010) */
 
 #endif

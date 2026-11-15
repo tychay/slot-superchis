@@ -235,8 +235,8 @@ ldscripts/slot_payload.ld.i ldscripts/gba_ewram.ld.i ldscripts/slot_preview.ld.i
 
 # slot: emulator preview ROM (developer tool, not firmware; tasks 5.1/D6). The same carousel code
 # linked against a stub host (src/slot/preview_host.c) into an ordinary ROM: the payload's writable
-# window is not available in an emulator (ROM space is read-only), so statics and the scratch
-# buffers live in EWRAM. Use with tools/preview_shots.sh.
+# window is not available in an emulator (ROM space is read-only), so the scratch
+# buffers live in EWRAM (statics link into the same IWRAM window as on hardware, ADR-0010). Use with tools/preview_shots.sh.
 preview:	slot-preview.gba
 
 slot-preview.gba:	$(SLOTFILES) $(SLOTHEADERS) src/slot/preview_host.c ldscripts/slot_preview.ld.i

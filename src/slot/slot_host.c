@@ -63,7 +63,7 @@ static int slot_run_payload(void) {
 
   struct slot_mailbox *mb = slot_api.mailbox;
   mb->launch_size = 0;
-  mb->launch_path[0] = 0;
+  *(volatile uint16_t *)&mb->launch_path[0] = 0;   // slot: SDRAM takes no byte stores (ADR-0010)
   mb->entry_reason = slot_booted ? SLOT_ENTER_RESUME : SLOT_ENTER_BOOT;
   slot_booted = true;
   slot_from_carousel = false;
@@ -76,7 +76,7 @@ static int slot_run_payload(void) {
   menu_slot_restore_video();
 
   if (act == SLOT_LAUNCH && mb->launch_path[0]) {
-    mb->launch_path[SLOT_MAX_PATH - 1] = 0;     // never trust the payload's terminator
+    *(volatile uint16_t *)&mb->launch_path[SLOT_MAX_PATH - 2] = 0;   // never trust the payload's terminator (halfword, ADR-0010)
     return SLOT_LAUNCH;
   }
   return SLOT_STOCK_UI;

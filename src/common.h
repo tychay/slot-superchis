@@ -94,12 +94,10 @@ _Static_assert(SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE <= 0x01000000, "slot window mu
 _Static_assert(SLOT_PAYLOAD_ADDR == GBA_ROM_BASE + SLOT_OFF_PAYLOAD, "slot payload addr/offset mismatch");
 _Static_assert(SLOT_OFF_PAYLOAD + SLOT_PAYLOAD_MAX <= SLOT_OFF_MAILBOX, "slot payload region overlaps the mailbox");
 _Static_assert(SLOT_MAILBOX_ADDR == GBA_ROM_BASE + SLOT_OFF_MAILBOX, "slot mailbox addr/offset mismatch");
-_Static_assert(SLOT_OFF_MAILBOX + SLOT_MAILBOX_SIZE <= SLOT_OFF_STATICS, "slot mailbox overlaps statics");
-_Static_assert(SLOT_STATICS_ADDR == GBA_ROM_BASE + SLOT_OFF_STATICS, "slot statics addr/offset mismatch");
-_Static_assert(SLOT_OFF_STATICS + SLOT_STATICS_SIZE <= SLOT_OFF_SCRATCH, "slot statics overlap scratch");
+_Static_assert(SLOT_OFF_MAILBOX + SLOT_MAILBOX_SIZE <= SLOT_OFF_SCRATCH, "slot mailbox overlaps scratch");
 _Static_assert(SLOT_SCRATCH_ADDR == GBA_ROM_BASE + SLOT_OFF_SCRATCH, "slot scratch addr/offset mismatch");
 _Static_assert(SLOT_OFF_SCRATCH + SLOT_SCRATCH_SIZE == SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE, "slot scratch must end at the window end");
-_Static_assert(SLOT_IWRAM_SIZE <= 8 * 1024, "slot payload IWRAM budget is 8KiB (ADR-0005)");
+_Static_assert(SLOT_IWRAM_SIZE <= 12 * 1024, "slot payload IWRAM budget is 12KiB (ADR-0010)");
 
 // Memory map for flash assets
 #define ROM_OFF_FLAHFIRMW         0x00000000     // At 0x0, the ROM boot address

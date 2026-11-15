@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "slot/slot_scan.h"
+#include "slot/slot_sdram.h"
 
 /* A fake directory: entries produced by a generator callback. */
 struct fake {
@@ -248,6 +249,44 @@ static void test_hostile_reader(void) {
   puts("ok unterminated name from the reader");
 }
 
+/* ADR-0010: SDRAM takes only 16-bit stores. The helper copies any (offset, length) with halfword
+   read-modify-write and must leave the neighbouring bytes untouched. */
+static void test_sdram_store(void) {
+  uint8_t buf[48], ref[48], src[32];
+  for (unsigned i = 0; i < sizeof(src); i++) src[i] = (uint8_t)(0xA0 + i);
+  for (unsigned off = 0; off < 6; off++)
+    for (unsigned n = 0; n <= 20; n++) {
+      for (unsigned i = 0; i < sizeof(buf); i++) buf[i] = ref[i] = (uint8_t)(0x11 + 7 * i);
+      memcpy(ref + 8 + off, src, n);
+      slot_sdram_store(buf + 8 + off, src, n);
+      assert(!memcmp(buf, ref, sizeof(buf)));
+    }
+  puts("ok slot_sdram_store: odd/even offsets and lengths, neighbours untouched");
+}
+
+/* Names of odd and even length: each is stored NUL padded to an even offset and reads back intact. */
+static void gen_parity(unsigned i, char *name, unsigned *flags) {
+  static const char *const n[] = { "a.gba", "ab.gba", "abc.gba", "Zelda.gba", "Zeldaa.gba", "q.gb" };
+  (void)flags;
+  strcpy(name, n[i]);
+}
+static void test_pool_even_offsets(void) {
+  struct arena a = arena_new(SLOT_SHELF_BYTES);
+  struct slot_shelf s;
+  assert(slot_shelf_init(&s, a.mem, a.size));
+  struct fake f = { 0, 6, -1, gen_parity };
+  slot_scan(&s, SLOT_PLAT_GBA, 10, next, &f);
+  assert(s.count == 5 && s.pool_used % 2 == 0);
+  static const char *const want[] = { "a.gba", "ab.gba", "abc.gba", "Zelda.gba", "Zeldaa.gba" };
+  for (unsigned i = 0; i < 5; i++) {
+    assert(!strcmp(slot_shelf_name(&s, i), want[i]));
+    assert(s.name_off[i] % 2 == 0);
+  }
+  arena_check(&a);
+  free(a.base);
+  puts("ok name pool: even offsets, odd/even lengths read back intact");
+}
+
 int main(void) {
   test_spec_scenario();
   test_extensions_per_shelf();
@@ -258,6 +297,8 @@ int main(void) {
   test_5000_entries_244_byte_names();
   test_utf8_and_titles();
   test_hostile_reader();
+  test_sdram_store();
+  test_pool_even_offsets();
   puts("slot_scan_test: all passed");
   return 0;
 }

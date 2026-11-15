@@ -20,6 +20,7 @@
  */
 #include "slot/slot_host_api.h"
 #include "slot/slot_scan.h"
+#include "slot/slot_sdram.h"
 #include "slot/slot_settings.h"
 #include "slot/slot_format.h"
 #include "slot_render.h"
@@ -34,7 +35,7 @@
 #define SLOT_GAMES_DIR "/Games"
 #define SLOT_TITLE_COLS 38
 
-/* Scratch layout (SDRAM window; EWRAM in the preview ROM): back buffer, cart cache, shelf. */
+/* Scratch layout (SDRAM window, 16-bit stores only, ADR-0010; EWRAM in the preview ROM): back buffer, cart cache, shelf. */
 #define SLOT_FRAME_BYTES (240u*160u*2u)
 #define SLOT_CACHE_STRIDE (104u*112u*2u)      /* the larger (GB/GBC) cart */
 #define SLOT_CACHE_BYTES (SLOT_CACHE_SLOTS*SLOT_CACHE_STRIDE)
@@ -45,6 +46,7 @@ _Static_assert(SLOT_FRAME_BYTES+SLOT_CACHE_BYTES+3u*SLOT_SHELF_BYTES<=SLOT_SCRAT
                "frame + cache + 3 shelves must fit the SDRAM scratch");
 _Static_assert(SLOT_SHELF_MAX<=65535u,"shelf order is uint16_t");
 
+static char slot_launch[SLOT_MAX_PATH+2] __attribute__((aligned(4)));   /* launch path staging (IWRAM) */
 typedef struct { int index; unsigned valid; } SlotCache;
 static SlotCache slot_cache[SLOT_CACHE_SLOTS];
 static uint16_t *slot_cache_base;
@@ -220,14 +222,20 @@ static void Slot_CheckLibrary(void)
     FRESULT result=slot_host->f_stat(SLOT_GAMES_DIR,&slot_info);
     slot_library_state=result==FR_OK?0:(result==FR_NO_FILE || result==FR_NO_PATH)?1:2;
 }
+/* The "Reading shelf..." screen: shown before any SD access so a hang there leaves a readable screen. */
+static void Slot_ShowReading(void)
+{
+    Slot_Background();Slot_Front();Slot_Centred("Reading shelf...",73,SLOT_INK);
+    slot_redraw_top=0;slot_redraw_bottom=160;Slot_Present();
+}
+
 static void Slot_Scan(void)
 {
     FRESULT result;
     Slot_ResetCache();slot_footer_dirty=1;
     slot_count=0;slot_scan_missing=0;slot_scan_error=0;slot_shelf_clear(&slot_shelf);
     if(slot_library_state==0) {
-        Slot_Background();Slot_Front();Slot_Centred("Reading shelf...",73,SLOT_INK);
-        slot_redraw_top=0;slot_redraw_bottom=160;Slot_Present();
+        Slot_ShowReading();
         result=slot_host->f_opendir(&slot_dir,slot_dirs[slot_platform]);
         slot_scan_missing=result==FR_NO_PATH || result==FR_NO_FILE;
         if(result==FR_OK) {
@@ -324,10 +332,12 @@ static unsigned Slot_Play(void)
     } else {Slot_DrawShelf((int)Slot_Index(),0,256,0);Slot_Present();}
     slot_cfg_dirty=1;
     Slot_SaveConfig();          /* a failed save only loses the remembered position, never the launch */
-    dir_len=Slot_Append(mailbox->launch_path,SLOT_MAX_PATH,0,slot_dirs[slot_platform]);
-    dir_len=Slot_Append(mailbox->launch_path,SLOT_MAX_PATH,dir_len,"/");
-    length=Slot_Append(mailbox->launch_path,SLOT_MAX_PATH,dir_len,slot_shelf_name(&slot_shelf,Slot_Index()));
+    /* ADR-0010: the mailbox is SDRAM (16-bit stores only): build the path in IWRAM, then copy it. */
+    dir_len=Slot_Append(slot_launch,SLOT_MAX_PATH,0,slot_dirs[slot_platform]);
+    dir_len=Slot_Append(slot_launch,SLOT_MAX_PATH,dir_len,"/");
+    length=Slot_Append(slot_launch,SLOT_MAX_PATH,dir_len,slot_shelf_name(&slot_shelf,Slot_Index()));
     if(length!=dir_len+(unsigned)strlen(slot_shelf_name(&slot_shelf,Slot_Index())))return 0;   /* cannot happen: the scan checked it */
+    slot_launch[length+1]=0;slot_sdram_store(mailbox->launch_path,slot_launch,(length+2)&~1u);
     mailbox->launch_size=slot_shelf_size(&slot_shelf,Slot_Index());
     Slot_FadeBlack();
     return 1;
@@ -344,6 +354,9 @@ static int Slot_Run(unsigned boot)
         Slot_FadeIn();for(i=0;i<18;i++)Slot_WaitFrame();Slot_FadeBlack();
         SLOT_DISPCNT=SLOT_FORCE_BLANK|SLOT_MODE3_BG2;
     }
+    /* slot: show "Reading shelf..." (display on, no black) before the first SD access, so a hang
+     * in settings/library/scan leaves a readable screen instead of white (task 5.3b). */
+    Slot_ShowReading();SLOT_DISPCNT=SLOT_MODE3_BG2;Slot_FadeIn();
     Slot_ReadConfig();Slot_CheckLibrary();
     Slot_Scan();
     if(!slot_count && slot_library_state==0) {          /* land on a shelf that has games */
@@ -352,8 +365,6 @@ static int Slot_Run(unsigned boot)
         if(!slot_count){slot_platform=original;Slot_Scan();}
     }
     Slot_Show((int)Slot_Index(),0,1);
-    SLOT_DISPCNT=SLOT_MODE3_BG2;
-    Slot_FadeIn();
     Slot_ResumeNav(slot_count,Slot_Index(),slot_wrap,slot_animations);
     redraw=0;last_base=(int)Slot_Index();last_fill=last_base;
     while(1) {

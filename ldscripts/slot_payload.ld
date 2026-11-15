@@ -3,8 +3,8 @@
  * Preprocessed with cpp (see the .ld.i rule in the Makefile); layout comes from slot_layout.h.
  *
  * Image layout (contiguous, objcopy -O binary): header, text, rodata, .iwram LMA, .data LMA.
- * Runtime: text/rodata execute in place from SDRAM; slot_entry() copies .iwram to
- * IWRAM[SLOT_IWRAM_BASE..], .data and zeroes .bss in the statics region of the window.
+ * Runtime: text/rodata execute in place from SDRAM; slot_entry() copies .iwram and .data into
+ * IWRAM[SLOT_IWRAM_BASE..] and zeroes .bss behind them (ADR-0010: SDRAM takes no byte stores).
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -16,7 +16,6 @@ ENTRY(slot_entry)
 
 MEMORY {
     SDRAM   : ORIGIN = SLOT_PAYLOAD_ADDR, LENGTH = SLOT_PAYLOAD_MAX
-    STATICS : ORIGIN = SLOT_STATICS_ADDR, LENGTH = SLOT_STATICS_SIZE
     IWRAM   : ORIGIN = SLOT_IWRAM_BASE,   LENGTH = SLOT_IWRAM_SIZE
 }
 
@@ -55,7 +54,7 @@ SECTIONS
         __iwram_end = .;
     } > IWRAM AT > SDRAM
 
-    /* Initialised statics live in the window's statics region, stored after .iwram. */
+    /* Initialised statics live in IWRAM after .iwram (ADR-0010), stored after .iwram's LMA. */
     .data : ALIGN(4)
     {
         __data_start = .;
@@ -63,7 +62,7 @@ SECTIONS
         *(.data.*)
         . = ALIGN(4);
         __data_end = .;
-    } > STATICS AT > SDRAM
+    } > IWRAM AT > SDRAM
 
     .bss (NOLOAD) : ALIGN(4)
     {
@@ -73,12 +72,12 @@ SECTIONS
         *(COMMON)
         . = ALIGN(4);
         __bss_end = .;
-    } > STATICS
+    } > IWRAM
 
     .slot_end : ALIGN(4)
     {
         LONG(0)
-    } > STATICS AT > SDRAM
+    } > SDRAM
 
     __iwram_lma  = LOADADDR(.iwram);
     __data_lma   = LOADADDR(.data);
@@ -90,5 +89,6 @@ SECTIONS
     /DISCARD/ : { *(.ARM.exidx*) *(.ARM.extab*) *(.comment) }
 }
 
-ASSERT(__iwram_size <= SLOT_IWRAM_SIZE, "slot payload IWRAM section exceeds 8KiB")
+ASSERT(__bss_end - __iwram_start <= SLOT_IWRAM_SIZE, "slot payload .iwram+.data+.bss exceed the 12KiB IWRAM window (ADR-0010)")
+ASSERT(__iwram_size <= SLOT_IWRAM_SIZE, "slot payload IWRAM section exceeds the IWRAM window")
 ASSERT(__image_size <= SLOT_PAYLOAD_MAX, "slot payload image exceeds its SDRAM region")
