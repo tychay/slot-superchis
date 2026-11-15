@@ -2,7 +2,7 @@
 VERSION_WORD := 0x00000016
 VERSION_SLUG_WORD := $(shell git rev-parse --short=8 HEAD || echo FFFFFFFF)
 # slot: fork milestone, shown on the Info screen as "slot.<milestone>". Bump here only.
-SLOT_MILESTONE := M1
+SLOT_MILESTONE := M2
 SLOT_MAX_IMAGE_KB ?= 2048
 
 PREFIX		:= arm-none-eabi-
@@ -123,8 +123,7 @@ SLOTFILES=src/slot/payload_entry.c \
           src/slot/slot_scan.c \
           src/slot/slot_settings.c \
           src/slot/slot_frontend.c \
-          src/slot/slot_blit.s \
-          src/slot/slot_art_gen.c
+          src/slot/slot_blit.s
 
 SLOTHEADERS=$(wildcard src/slot/*.h)
 
@@ -194,7 +193,7 @@ INFILES=src/gba_ewram_crt0.S \
         src/slot/slot_host.c \
         ${FATFSFILES}
 
-all:	$(FWBINFILES) $(BIEMUFILES) directsave.payload ingame_trampoline.payload slot.payload
+all:	$(FWBINFILES) res/slot_assets.pack.comp $(BIEMUFILES) directsave.payload ingame_trampoline.payload slot.payload
 	# Wrap the firmware around a ROM->EWRAM loader
 	$(CC) $(CFLAGS) -o firmware.elf rom_boot.S -T ldscripts/gba_romboot.ld -nostartfiles -nostdlib -Wl,--defsym,MAX_FLASH_SIZE=$(MAXFSIZE)K
 	$(OBJCOPY) --output-target=binary firmware.elf superfw.gba
@@ -226,9 +225,10 @@ ingamemenu.payload:	$(MENUFILES) src/menu_messages.h
 			-nostartfiles -fno-builtin -Wl,-Map=firmware.ingame.map -Wl,--print-memory-usage
 	$(OBJCOPY) --output-target=binary ingamemenu.elf ingamemenu.payload
 
-# slot: built-in art subset, generated from the pinned submodule (read-only) at build time.
-src/slot/slot_art_gen.c:	tools/slot_assets_gen.py vendor/slot-advance/common/slot_assets.h
-	python tools/slot_assets_gen.py vendor/slot-advance/common/slot_assets.h $@
+# slot: the art/sound asset pack (task 6.1), generated from the pinned submodule (read-only) at build
+# time, apultra-compressed by the %.pack.comp rule and unpacked into the SDRAM window by rom_boot.S.
+res/slot_assets.pack:	tools/slot_pack.py vendor/slot-advance/common/slot_assets.h vendor/slot-advance/tools/convert_sounds.py
+	python tools/slot_pack.py vendor/slot-advance $@
 
 # slot: carousel payload
 slot.payload:	$(SLOTFILES) $(SLOTHEADERS) ldscripts/slot_payload.ld.i
@@ -244,8 +244,8 @@ ldscripts/slot_payload.ld.i ldscripts/gba_ewram.ld.i ldscripts/slot_preview.ld.i
 # buffers live in EWRAM (statics link into the same IWRAM window as on hardware, ADR-0010). Use with tools/preview_shots.sh.
 preview:	slot-preview.gba
 
-slot-preview.gba:	$(SLOTFILES) $(SLOTHEADERS) src/slot/preview_host.c ldscripts/slot_preview.ld.i
-	$(CC) $(SLOT_CFLAGS) -o slot-preview.elf $(SLOTFILES) src/slot/preview_host.c -T ldscripts/slot_preview.ld.i \
+slot-preview.gba:	$(SLOTFILES) $(SLOTHEADERS) src/slot/preview_host.c src/slot/preview_art.S res/slot_assets.pack $(shell find tests/fixtures/art -name "*.bmp") ldscripts/slot_preview.ld.i
+	$(CC) $(SLOT_CFLAGS) -DSLOT_PREVIEW -o slot-preview.elf $(SLOTFILES) src/slot/preview_host.c src/slot/preview_art.S -T ldscripts/slot_preview.ld.i \
 			-nostartfiles -nostdlib -Wl,-Map=slot-preview.map -Wl,--print-memory-usage -lgcc
 	$(OBJCOPY) --output-target=binary slot-preview.elf $@
 
@@ -258,6 +258,10 @@ slot-tests:
 	./build/tests/slot_scan_test
 	gcc $(SLOT_TEST_CFLAGS) -o build/tests/slot_settings_test tests/slot_settings_test.c src/slot/slot_settings.c src/slot/slot_scan.c
 	./build/tests/slot_settings_test
+	# slot: Cart Studio art format (task 6.2): real converter output generated here + converted real labels.
+	python3 tests/make_art_fixtures.py build/tests/art
+	gcc $(SLOT_TEST_CFLAGS) -o build/tests/slot_bmp_test tests/slot_bmp_test.c
+	./build/tests/slot_bmp_test build/tests/art tests/fixtures/art
 
 ingame_trampoline.payload:	src/ingame_trampoline.S
 	$(CC) $(BASEFLAGS) -nostartfiles -T ldscripts/gba_ingametramp.ld -o ingame_trampoline.elf src/ingame_trampoline.S
@@ -291,6 +295,6 @@ upkr.elf:	tools/upkr.cc
 	g++ -o $@ $< -O3 -ffast-math
 
 clean:
-	rm -f ldscripts/*.i *.gba *.elf *.payload *.map res/*.comp emu/*.comp *.comp src/menu_messages.h src/messages_data.h src/slot/slot_art_gen.c
+	rm -f ldscripts/*.i *.gba *.elf *.payload *.map res/*.comp emu/*.comp *.comp src/menu_messages.h src/messages_data.h res/slot_assets.pack
 	rm -rf build/tests
 

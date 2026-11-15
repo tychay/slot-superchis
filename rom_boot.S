@@ -368,6 +368,20 @@ _main_end:
   mov r2, $((slot_payload_end - slot_payload_start + 2047) / 2048)   @ <= 128 (SLOT_PAYLOAD_MAX)
   bl sdram_copy
 
+  @ slot: the carousel asset pack (res/slot_assets.pack, task 6.1, ADR-0011): copy the compressed
+  @ blob to the scratch area, map SDRAM and unpack it into the pack region at the top of the slot
+  @ window. This is the same sequence the font pack uses on boards that compress fonts: the
+  @ 16-bit-safe unpacker only ever does halfword stores into SDRAM.
+  ldr r0, =slot_pack_start
+  mov r1, $HISCRATCH_ADDR
+  mov r2, $((slot_pack_end - slot_pack_start + 2047) / 2048)
+  bl sdram_copy
+  mov r0, $0x5
+  bl set_sd_mode                       @ Map SDRAM so we can unpack it.
+  mov r0, $HISCRATCH_ADDR
+  ldr r1, =SLOT_PACK_ADDR
+  bl apunpack16
+
   @ Now we can proceed to unpack the firmware to EWRAM
   mov r0, r12
   bl set_sd_mode                       @ Switch to source map
@@ -787,3 +801,9 @@ slot_payload_start:
   .incbin "slot.payload"
   .balign 4
 slot_payload_end:
+
+@ slot: the apultra-compressed asset pack (Makefile: res/slot_assets.pack.comp), after the payload.
+slot_pack_start:
+  .incbin "res/slot_assets.pack.comp"
+  .balign 4
+slot_pack_end:

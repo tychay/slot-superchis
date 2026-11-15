@@ -22,11 +22,14 @@
 #define SLOT_OFF_MAILBOX          0x00BC0000     /* host<->payload mailbox */
 #define SLOT_MAILBOX_SIZE         0x00001000     /* 4KiB */
 #define SLOT_OFF_SCRATCH          0x00BC1000     /* payload buffers: back buffer, art cache, ... */
-#define SLOT_SCRATCH_SIZE         0x002BF000     /* up to the window end */
+#define SLOT_SCRATCH_SIZE         0x0023F000     /* up to the asset pack (ADR-0011) */
+#define SLOT_OFF_PACK             0x00E00000     /* decompressed res/slot_assets.pack (ADR-0011) */
+#define SLOT_PACK_SIZE            0x00080000     /* 512KiB, up to the window end; pack is ~280KiB */
 
 #define SLOT_PAYLOAD_ADDR         0x08B80000
 #define SLOT_MAILBOX_ADDR         0x08BC0000
 #define SLOT_SCRATCH_ADDR         0x08BC1000
+#define SLOT_PACK_ADDR            0x08E00000
 
 /*
  * No SDRAM statics: the SuperCard SDRAM only takes 16/32-bit stores (ADR-0010), so the payload's

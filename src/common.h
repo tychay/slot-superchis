@@ -96,7 +96,9 @@ _Static_assert(SLOT_OFF_PAYLOAD + SLOT_PAYLOAD_MAX <= SLOT_OFF_MAILBOX, "slot pa
 _Static_assert(SLOT_MAILBOX_ADDR == GBA_ROM_BASE + SLOT_OFF_MAILBOX, "slot mailbox addr/offset mismatch");
 _Static_assert(SLOT_OFF_MAILBOX + SLOT_MAILBOX_SIZE <= SLOT_OFF_SCRATCH, "slot mailbox overlaps scratch");
 _Static_assert(SLOT_SCRATCH_ADDR == GBA_ROM_BASE + SLOT_OFF_SCRATCH, "slot scratch addr/offset mismatch");
-_Static_assert(SLOT_OFF_SCRATCH + SLOT_SCRATCH_SIZE == SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE, "slot scratch must end at the window end");
+_Static_assert(SLOT_OFF_SCRATCH + SLOT_SCRATCH_SIZE == SLOT_OFF_PACK, "slot scratch must end where the asset pack begins");  // slot: ADR-0011
+_Static_assert(SLOT_OFF_PACK + SLOT_PACK_SIZE == SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE, "slot asset pack must end at the window end");
+_Static_assert(SLOT_PACK_ADDR == GBA_ROM_BASE + SLOT_OFF_PACK, "slot pack addr/offset mismatch");
 _Static_assert(SLOT_IWRAM_SIZE <= 12 * 1024, "slot payload IWRAM budget is 12KiB (ADR-0010)");
 
 // Memory map for flash assets
