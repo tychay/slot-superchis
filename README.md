@@ -194,7 +194,7 @@ Boot the file from stock SuperFW, then confirm:
 - When you exit a game, the cart resets into the flashed stock SuperFW, not back into this fork
   (see step 5 of Install for the quick way back).
 - The stock file browser lists at most 12,288 entries per folder (was 16,384): SDRAM was needed for
-  the carousel's window (see `openspec/changes/add-slot-carousel/design.md`, "SDRAM map (audited)").
+  the carousel's window (see `openspec/changes/archive/2026-11-15-add-slot-carousel/design.md`, "SDRAM map (audited)").
 - No settings screen: themes cycle with B+Start, everything else is `SYSTEM/SLOT/SETTINGS.TXT`.
 - Art must be the converter's exact format (16-bit RGB555 BMP, 120x71 GBA / 104x112 GB and GBC);
   other BMPs are ignored and the plain cart is shown.
