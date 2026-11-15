@@ -1,222 +1,216 @@
 # slot. superchis
 
-A continuation fork of [SuperFW](https://github.com/davidgfnet/superfw) (GBA flashcart firmware)
-for the **SuperChis Prime** whose home screen is a [slot.](https://github.com/slot-cfw/slot)-style
-cartridge carousel (ported from [slot. advance](https://github.com/FrankieT19/slot-advance)).
-Licensed GPL-3.0-or-later, see `LICENSE` and `NOTICE.md`.
+A [slot.](https://github.com/slot-cfw/slot)-style cartridge carousel for the **SuperChis Prime** GBA
+flashcart. Your games sit on a shelf as carts; pick one, it slides into the slot, and
+[SuperFW](https://github.com/davidgfnet/superfw) launches it.
 
-## What it is (current status: M2)
+<!-- TODO(terry): a sentence or two in your own words on why this exists. -->
 
-At **M2** the fork boots to a cartridge carousel instead of SuperFW's file browser:
+---
 
-- a short "slot." splash, then three shelves of cartridges read from `Games/GBA`,
-  `Games/GB` and `Games/GBC` on the SD card, with the selected cart's name shown as text;
-- **label art and shell colours** from slot. Cart Studio (see "Cart Studio art" below); carts
-  without art stay plain silhouettes with the name on the label;
-- **Wood, Dark and Light themes** (hold B, press Start to cycle);
-- slot.'s **insert sound** when you press A;
-- slot.'s spring motion and the insert animation;
-- pressing A hands the game to SuperFW's own launcher: GBA games open SuperFW's load popup
-  (saves, patches, in-game menu all work as in stock SuperFW), GB/GBC games start the bundled
-  Goombacolor;
-- Select opens SuperFW's stock UI (Recent, Browse, Settings, Tools, Info), so nothing in SuperFW
-  becomes unreachable;
-- the last shelf, the selected cart of each shelf and the theme are remembered (saved when you launch a game, or a couple of seconds after you stop pressing buttons).
+## What does it look like?
 
-Not yet (see `TODO.md`): the slot.-style settings screen, return-to-carousel after a game exits,
-other systems.
+<p align="center">
+<img src=".github/resources/screenshots/gba-wood.png" width="48%" alt="GBA shelf in the Wood theme, a purple Aurora Quest cart selected">
+<img src=".github/resources/screenshots/gbc-wood.png" width="48%" alt="GBC shelf with the rounded Game Boy Color cart outline">
+</p>
+<p align="center">
+<img src=".github/resources/screenshots/gb-dark.png" width="48%" alt="GB shelf in the Dark theme">
+<img src=".github/resources/screenshots/gba-light.png" width="48%" alt="GBA shelf in the Light theme">
+</p>
 
-Target hardware: SuperChis Prime only (`BOARD=chis`). English only.
+Screenshots come from the emulator preview build, with made-up games and labels.
 
-## Controls (M2)
+<!-- TODO(terry): link the video here once it's up; animated GIFs later. -->
 
-| Where | Key | Does |
-|---|---|---|
-| Carousel | Left / Right | previous / next cart (hold to repeat: first after 400 ms, then every 200 ms; wraps around) |
-| Carousel | L / R | previous / next shelf (GBA, GB, GBC, wrapping) |
-| Carousel | A | play the insert animation, then open the game in SuperFW's launcher |
-| Carousel | hold B, press Start | next theme: Wood, Dark, Light (saved in `SETTINGS.TXT`) |
-| Carousel | Select | open SuperFW's stock UI |
-| SuperFW load popup | B | cancel, back to the carousel with the same cart selected |
-| Stock Settings / UI / Tools / Info tab | Select | back to the carousel |
+---
 
-(Select on the stock Recent, Browse and NOR tabs keeps its normal SuperFW meaning, so first move to
-one of the four tabs above with the L/R shoulder buttons.)
+## Features
 
-The footer shows `Select: SuperFW menu` on the left and `<shelf> n/total` on the right. If a folder
-holds more than 2,048 matching games, the first 2,048 found are shown and the footer says
-`First 2048 games shown`; files whose full path would not fit SuperFW's 255-character path limit
-are skipped and counted in the footer.
+- **GBA, GB and GBC shelves**, read from `Games/GBA`, `Games/GB` and `Games/GBC` on the SD card.
+- slot.'s **spring motion**, **insert animation** and **insert sound**.
+- **Label art and cart colours** from [slot. Cart Studio](https://studio.slot-cfw.fyi). See
+  [Label art](#label-art).
+- **Wood, Dark and Light themes.**
+- **Everything SuperFW does still works.** GBA games go through SuperFW's own load screen (saves,
+  patches, in-game menu), GB/GBC games start in SuperFW's bundled emulator, and **Select** opens
+  the stock SuperFW menu.
+- **Remembers where you were**: shelf, cart and theme survive a power cycle.
+
+## Requirements
+
+- A **SuperChis Prime** with stock [SuperFW](https://github.com/davidgfnet/superfw) already
+  flashed. This is the only cart it is built for.
+- A GBA, GBA SP, Game Boy Micro or DS. Tested on an original GBA.
+- Your games, **unzipped**.
 
 ## Install
 
-This is delivered as a `.gba` file that you run from the SD card. Nothing is flashed.
+Runs from the SD card. Nothing is flashed.
 
-1. Your SuperChis must already run stock SuperFW from its flash (that is how you launch the fork).
-2. Download `slot-superchis-v0.1.0.gba` from the GitHub Releases page (or build your own `superfw.gba`, see Build) and copy it to the SD card.
-   Any folder works.
-3. Put your games, **unzipped**, in `Games/GBA` (`.gba`), `Games/GB` (`.gb`) and `Games/GBC`
-   (`.gbc`) at the card root. Folders are not searched recursively; hidden files and macOS `._*`
-   files are ignored.
-4. Put the card in the cart, boot into stock SuperFW, and launch the file from its file browser
-   like any other GBA game. The fork's carousel appears.
-5. To make returning to the fork quick after a game, leave stock SuperFW's **UI tab → Recent
-   ROMs** set to Enabled (the default): stock SuperFW then opens on its Recent tab, and the fork's
-   `.gba` is the first entry there because games launched from the carousel are *not* added to
-   SuperFW's recent list. Power on, press A, and you are back in the carousel.
+1. Download `slot-superchis-v0.1.0.gba` from
+   [Releases](https://github.com/tychay/slot-superchis/releases) and copy it anywhere on the SD card.
+2. Put your games in `Games/GBA` (`.gba`), `Games/GB` (`.gb`) and `Games/GBC` (`.gbc`) at the card
+   root.
+3. Boot stock SuperFW and launch `slot-superchis-v0.1.0.gba` from its file browser, like any
+   other game.
+4. Optional: add [label art](#label-art).
 
-6. Optional, for label art: follow "Cart Studio art" below.
+**Getting back after a game.** Quitting a game resets the cart into stock SuperFW, not the
+carousel. Leave stock SuperFW's **UI → Recent ROMs** on (the default): it opens on its Recent tab
+with `slot-superchis-v0.1.0.gba` at the top, so it's power on → **A**. Games you start from the
+carousel are kept out of that list on purpose.
 
-Saves and SuperFW's settings stay in the usual `SAVEGAME/` and `.superfw/` folders. The carousel's
-own state is `SYSTEM/SLOT/SETTINGS.TXT` (slot. advance's format, so the same card works with
-slot. Cart Studio later).
+Saves stay in SuperFW's usual `SAVEGAME/` folder. The carousel keeps its own state in
+`SYSTEM/SLOT/SETTINGS.TXT`.
 
-## Cart Studio art
+**Uninstall:** delete the `.gba` file, and `SYSTEM/SLOT/` if you like. Nothing else changes.
 
-The carousel shows the cart images that [slot. Cart Studio](https://studio.slot-cfw.fyi) makes, read
-from `SYSTEM/SLOT/CARTS/<GBA|GB|GBC>/<ROM name>.bmp` on the card (`CARTS_FLAT/` for the flat
-look). The file name is the ROM's file name without its extension, exactly. A cart with no BMP
-shows the plain silhouette with its name.
+## Controls
 
-Cart Studio does not recognise a SuperChis card (it looks for EZ-Flash kernel files), so it offers
-a **"Download"** `labels.zip` instead of writing to the card. The steps:
+| Where | Button | Does |
+|---|---|---|
+| Carousel | Left / Right | Previous / next cart (hold to scroll) |
+| Carousel | L / R | Previous / next shelf |
+| Carousel | A | Insert the cart and start the game |
+| Carousel | Hold B, press Start | Next theme |
+| Carousel | Select | Stock SuperFW menu |
+| GBA load screen | B | Back to the carousel |
+| Stock menu, Settings / UI / Tools / Info tab | Select | Back to the carousel |
 
-1. Open studio.slot-cfw.fyi in Chrome or Edge and choose the card (or any folder with
-   `Games/GBA`, `Games/GB`, `Games/GBC` in it) so it can match your ROMs. Make your labels.
-2. Choose **Download for slot. advance** (not "Write to card") and save `labels.zip`.
-3. Convert it into the card's `SYSTEM/SLOT` folder. On macOS or Linux, with Docker running, get
-   this repository (with its `vendor/slot-advance` submodule, which holds the converter) and run
-   the wrapper:
+On the stock Recent and Browse tabs, Select keeps its SuperFW meaning, so move to one of the
+tabs above with L/R first.
 
-   ```sh
-   git clone --recursive https://github.com/tychay/slot-superchis.git
-   cd slot-superchis
-   tools/convert_labels.sh ~/Downloads/labels.zip /Volumes/SUPERCHIS   # the card root, the folder that holds Games/
-   ```
+## Label art
 
-   This runs the vendored slot. advance converter in the build container, reads the ROM headers in
-   `Games/` to pick each cart's shell colour and outline, and writes `SYSTEM/SLOT/CARTS`,
-   `CARTS_FLAT` and `LABELS` onto the card. On Windows, download slot. advance's
-   release from https://github.com/FrankieT19/slot-advance/releases and run its Label Converter
-   on the card; it produces the same `SYSTEM/SLOT` files.
-4. Put the card in the cart and boot the fork. Art streams in while you scroll (a cart may show
-   its plain silhouette for a few frames first). To use the flat look, set `Skeuomorphic=0` in
-   `SYSTEM/SLOT/SETTINGS.TXT`.
+The carousel shows the cart images that [slot. Cart Studio](https://studio.slot-cfw.fyi) makes.
+Carts without art show a plain cart with the game's name.
 
-## Remove
+Cart Studio recognises a slot. card by an EZ-Flash kernel file (`ezkernel.bin`) at the card root.
+It only checks the name, so an empty file is enough:
 
-Delete the `.gba` file from the card. Nothing else changed: the cart's flash still holds stock
-SuperFW, and the shared `SAVEGAME/` and `.superfw/` folders are the same ones stock SuperFW uses.
-`SYSTEM/SLOT/` may be deleted as well.
+1. Create an **empty file named `ezkernel.bin`** at the root of the SD card, next to `Games/`.
+2. Open [studio.slot-cfw.fyi](https://studio.slot-cfw.fyi):
+   - **Chrome or Edge:** choose the card, allow file editing, make your labels, then **Write to
+     card**. Done.
+   - **Safari or Firefox:** these can't write to a folder, so Cart Studio offers a download
+     instead. Extract `labels.zip` and copy its `SYSTEM` folder to the card root.
+3. Boot the carousel. Art streams in as you scroll.
 
-## Build
+Remove `ezkernel.bin` before putting the card in an EZ-Flash.
 
-Requires Docker (Desktop or Engine) running. The build runs inside the image in `docker/`, which
-mirrors upstream SuperFW's CI.
+<details>
+<summary>Converting a <code>labels.zip</code> that has no <code>SYSTEM</code> folder</summary>
+
+Without `ezkernel.bin`, Cart Studio's download holds only plain label pictures. Convert them with
+slot. advance's converter:
+
+- **macOS / Linux** (needs Docker):
+
+  ```sh
+  git clone --recursive https://github.com/tychay/slot-superchis.git
+  cd slot-superchis
+  tools/convert_labels.sh ~/Downloads/labels.zip /Volumes/SUPERCHIS   # the card root
+  ```
+
+- **Windows:** run the Label Converter from
+  [slot. advance's release](https://github.com/FrankieT19/slot-advance/releases) on the card.
+
+</details>
+
+For the flat cart look, set `Skeuomorphic=0` in `SYSTEM/SLOT/SETTINGS.TXT`.
+
+## Caveats
+
+- **SuperChis Prime only.** Other SuperCard boards are not built or tested.
+- **Up to 2,048 games per shelf.** Beyond that the first 2,048 are shown and the footer says so.
+- **Stock SuperFW's file browser** lists up to 12,288 files per folder in this build (16,384 in
+  stock), because the carousel needs some of the cart's memory.
+- **Flat folders only:** subfolders of `Games/GBA` and the others are not searched. Games whose
+  full path is longer than 255 characters are skipped.
+- **Quitting a game lands in stock SuperFW**, not the carousel (see [Install](#install)).
+- **GBA games show SuperFW's load screen** after the insert animation; GB/GBC start straight away.
+- Label art can appear a moment late when scrolling fast, mostly on GB/GBC.
+- English only. Accented letters in game names show as `?`.
+
+Planned and possible work is in [TODO.md](TODO.md).
+
+## Flashing (untested)
+
+The author has not flashed this build and does not own a DS to recover a cart, so this is
+**untested**. Running from the SD card is the supported way. If you have the means to recover a
+cart and want to try, reports are very welcome.
+
+You need a recovery plan **before** you start: a DS or DS Lite, a Slot-1 flashcart and
+[superfw-nds-flasher-tool](https://github.com/davidgfnet/superfw-nds-flasher-tool). Use that tool
+to **back up your current flash first**. If the cart no longer boots, it is also how you restore
+that backup.
+
+Flashing works the same way as updating stock SuperFW:
+
+1. Copy the release `.gba` to the card and rename the copy to end in `.fw`, e.g.
+   `slot-superchis-v0.1.0.fw`.
+2. Launch the carousel, press **Select**, and go to the **Info** tab.
+3. Hold **Down + B + Start** to enable flashing.
+4. Go to the **Browse** tab, pick the `.fw` file and confirm. Don't power off while it writes.
+5. Reboot the GBA.
+
+To go back to stock, flash the stock SuperFW `.fw` from its
+[releases](https://github.com/davidgfnet/superfw/releases) the same way.
+
+## Reporting problems
+
+- **White screen after the "slot." splash:** run `slot-superchis-v0.1.0-diag.gba` from the release.
+  It shows rows of coloured squares for each startup step and memory test. A photo of the screen
+  tells us where it stopped.
+- **Plain carts and no wood background:** the art pack failed to unpack.
+
+[Open an issue](https://github.com/tychay/slot-superchis/issues) with your cart, console and SD
+card size. [docs/TESTING.md](docs/TESTING.md) has the full hardware checklist.
+
+## Building
+
+Needs Docker running. The build runs in a container that mirrors upstream SuperFW's CI.
 
 ```sh
-./build.sh          # builds superfw.gba (make BOARD=chis COMPRESSION_RATIO=10)
-./build.sh clean    # clean build outputs
+git clone --recursive https://github.com/tychay/slot-superchis.git
+cd slot-superchis
+./build.sh          # → superfw.gba
+./build.sh clean
 ```
 
-The build fails if `superfw.gba` grows beyond 2,048 KB (override with
-`./build.sh BOARD=chis COMPRESSION_RATIO=10 SLOT_MAX_IMAGE_KB=<kb>`). The fork milestone shown on
-the Info tab is `SLOT_MILESTONE` at the top of the `Makefile`.
+The build is reproducible: building a release tag gives the same bytes as the release file.
+Emulator preview, screenshot harness and unit tests: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-The carousel is a separate program, `slot.payload` (built from `src/slot/`), copied to SDRAM at
-boot and run from there; the firmware itself changes only in a few `// slot:` marked places.
-Its built-in art is extracted at build time from the pinned `vendor/slot-advance` submodule
-(`git submodule update --init` first on a fresh clone).
+## Architecture
 
-## Developer tools (not part of the install)
+The carousel is a separate program (`src/slot/`) that SuperFW copies to the cart's SDRAM at boot
+and runs from there. SuperFW's own files change only in a few places, each marked `// slot:`.
 
-These are for working on the carousel without a cart. They are **not** firmware and must not be
-copied to the card.
+- [adr/](adr/): architecture decisions. Start with
+  [0004](adr/0004-carousel-as-sdram-payload-with-host-abi.md) (payload design) and
+  [0010](adr/0010-sdram-is-16-bit-write-only-payload-statics-in-iwram.md) (SuperCard SDRAM rules).
+- [openspec/](openspec/): specs and the archived design, including the
+  [original change](openspec/changes/archive/2026-11-15-add-slot-carousel/).
+- [TODO.md](TODO.md): planned work.
 
-**Preview ROM.** `./build.sh preview` builds `slot-preview.gba`: the same carousel code linked
-against a stub host (`src/slot/preview_host.c`) with a fictional in-memory library instead of an SD
-card, so it runs in a stock emulator (mGBA). Select shows a stub "stock UI" screen (Select returns), and
-A shows a stub "load popup" with the launch path (B returns). The library mode is chosen by the
-keys held when the ROM starts: nothing = about 8 fictional titles per shelf, **Up** = a 3,000-title
-stress shelf (some 240-character names, some UTF-8, some too long to launch), **Down** = every
-shelf empty, **Left** = no `Games` folder.
+## AI Disclosure
 
-**Screenshot harness.** `tools/preview_shots.sh <rom.gba> <sequence> [outdir]` runs a ROM headless
-in libmgba inside the build container (no window, no GUI or screen-capture permissions) with a
-scripted key sequence and writes PNGs to `build/shots/` (git-ignored). Example, boot, Right twice, switch shelf:
-
-```sh
-./build.sh preview
-tools/preview_shots.sh slot-preview.gba wait:150,shot:boot,Right,Right,wait:40,shot:right2,R,wait:40,shot:gb
-tools/preview_shots.sh slot-preview.gba hold:Up:20,wait:300,shot:stress,Left,wait:50,shot:wrap   # stress shelf
-```
-
-Run the script without arguments for the step grammar (`wait:N`, `KEY`, `hold:KEY[:N]`, `shot[:NAME]`).
-
-**Host unit tests.** `./build.sh slot-tests` compiles and runs, in the build container with
-AddressSanitizer, the tests for the pure carousel modules: `tests/slot_scan_test.c` (filter, sort,
-the 5,000-entry / 255-byte-name large-library cases) and `tests/slot_settings_test.c`
-(`SETTINGS.TXT` round trip and validation), and `tests/slot_bmp_test.c` (Cart Studio art: the
-real converter's output, generated in the container, plus converted real labels in
-`tests/fixtures/art`, must validate and decode to the expected sizes). (Upstream's own `tests/Makefile` is unchanged; it needs
-`lcov` and OpenSSL, which the build image does not install.)
-
-## Hardware test checklist (M2)
-
-Install `the release `.gba`` and run Cart Studio as described above, then confirm:
-
-- [ ] The "slot." splash, "Reading shelf...", then the carousel. Carts that have art show their
-      labels and shell colours; carts without art show the plain silhouette with the name.
-- [ ] Hold Right across a shelf where every cart has art: scrolling continues without long
-      freezes (art may appear a frame or two late; note any stutter).
-- [ ] Hold B and press Start: the theme cycles Wood, Dark, Light and the choice survives a power
-      cycle. The footer text is readable in all three.
-- [ ] Press A on a GBA game: the insert sound plays with the insert animation, the game starts,
-      and the **game's own audio is clean** afterwards (no hiss, crackle or silence). Repeat
-      with a GB game and Advance Wars. Mute check: set `Sounds=0` in `SETTINGS.TXT` and A is silent.
-- [ ] Everything in the M1 checklist below still works (launch, saves, B in the popup, Select
-      round trip, Recent, stock browser).
-
-### M1 checklist (regression)
-
-Boot the file from stock SuperFW, then confirm:
-
-- [ ] The "slot." splash appears, then a "Reading shelf..." screen (stays visible if the read hangs), then the carousel with shelves and sort order as expected
-      (alphabetical, case-insensitive, per `Games/GBA`, `GB`, `GBC`).
-- [ ] Navigation is smooth (Left/Right, hold to repeat, L/R shelves); note any stutter.
-- [ ] Advance Wars launches from the carousel; save in-game, exit, relaunch: the save is intact.
-- [ ] Tetris (GB) and Link's Awakening DX (GBC) launch.
-- [ ] B in the load popup returns to the carousel with the same cart selected.
-- [ ] Select shows stock Settings/Info and they work; Select (on Settings/UI/Tools/Info) returns to
-      the carousel.
-- [ ] Change shelf, cart and theme, wait a few seconds, power-cycle: all three are restored.
-- [ ] After an in-game exit, the stock Recent tab shows the fork `.gba` first (task 4.9: carousel
-      launches are not added to the recent list).
-- [ ] The stock file browser still lists files correctly (SDRAM sanity check).
-
-## Known limitations
-
-- When you exit a game, the cart resets into the flashed stock SuperFW, not back into this fork
-  (see step 5 of Install for the quick way back).
-- The stock file browser lists at most 12,288 entries per folder (was 16,384): SDRAM was needed for
-  the carousel's window (see `openspec/changes/archive/2026-11-15-add-slot-carousel/design.md`, "SDRAM map (audited)").
-- No settings screen: themes cycle with B+Start, everything else is `SYSTEM/SLOT/SETTINGS.TXT`.
-- Art must be the converter's exact format (16-bit RGB555 BMP, 120x71 GBA / 104x112 GB and GBC);
-  other BMPs are ignored and the plain cart is shown.
-- The insert sound is a one-shot played from a small buffer refilled each frame: if the carousel
-  ever misses two VBlanks in a row while it plays (not seen in testing) it may crackle.
-- Only the SuperChis Prime board is targeted; other SuperCard variants are untested.
-
-## Flashing (untested, help wanted)
-
-The author has **never flashed this firmware** and it is **untested**. It is designed to be run
-from SD, not flashed, and no flashing step is provided or recommended. If you flash it anyway and
-it goes wrong, recovery needs a Nintendo DS or DS Lite plus a Slot-1 cart, using
-https://github.com/davidgfnet/superfw-nds-flasher-tool. Reports from anyone who has done this
-safely are welcome.
+<!-- TODO(terry): your own words. slot.'s README has an example of the tone if you want one. -->
 
 ## Credits
 
-SuperFW by David Guillen Fandos; slot. by Brandon Kowalski and contributors (artwork by Markus);
-slot. advance / DS Style by FrankieT19; EZ-FLASH / SimpleLight authors. Full details in
-`NOTICE.md`. The original SuperFW README is kept at `docs/SUPERFW-README.md`.
+- [SuperFW](https://github.com/davidgfnet/superfw) by David Guillen Fandos: the firmware this is a
+  fork of.
+- [slot.](https://github.com/slot-cfw/slot) by Brandon Kowalski and contributors: the carousel
+  design, motion, sounds and [Cart Studio](https://github.com/slot-cfw/cart-studio-web).
+- Cartridge artwork by [Markus](https://github.com/MarkusMaribu).
+- [slot. advance](https://github.com/FrankieT19/slot-advance) and DS Style by
+  [FrankieT19](https://github.com/FrankieT19): the GBA port this carousel is adapted from.
+
+Full notices, including fonts, are in [NOTICE.md](NOTICE.md). The original SuperFW README is in
+[docs/SUPERFW-README.md](docs/SUPERFW-README.md).
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).

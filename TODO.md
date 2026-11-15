@@ -36,3 +36,5 @@ Not part of the `add-slot-carousel` change (M0 to M2). Source: `openspec/changes
 - [ ] **Before going public:** `tests/fixtures/art/` and the preview ROM contain real Cart Studio
       label art (commercial box art) from the author's card. Replace with fictional labels
       (vendor `tools/make_examples.py` style) and purge them from git history before pushing.
+- [ ] Light theme: the footer text ("Select: SuperFW menu") runs across the band's dark cart slot
+      and looks cluttered. Move or shorten it, or give it a backing.
