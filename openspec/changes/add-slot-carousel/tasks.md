@@ -105,5 +105,5 @@
 
 ## 7. Wrap-up
 
-- [ ] 7.1 Review `git diff upstream/master -- src/ Makefile rom_boot.S ldscripts/`. Every upstream-file hunk is marked `// slot:` and justified. Check: written summary in the apply report.
-- [ ] 7.2 Re-run the full build, unit tests and preview shots from clean. Check: all pass.
+- [x] 7.1 Review `git diff upstream/master -- src/ Makefile rom_boot.S ldscripts/`. Every upstream-file hunk is marked `// slot:` and justified. Check: written summary in the apply report. (2026-11-15: 7 upstream files, +186/-4; every hunk contains a `// slot:`/`@ slot:` marker: Makefile +75 (payload, pack, preview, slot-tests, diag, size guard), rom_boot.S +36 (payload copy, pack unpack, incbins), common.h +23 (window asserts), menu.c +43 (hand-off, popup check, recent gate, Info suffix, video restore, Select hook), main.c +7 (splash, slot_enter, slot_poll), gba_ewram.ld +4 (IWRAM assert), config.h 1 line (browser cap 12,288, ADR-0009).)
+- [x] 7.2 Re-run the full build, unit tests and preview shots from clean. Check: all pass. (2026-11-15: clean build OK, only the pre-existing upstream menu.c unused-variable warning; slot_scan/slot_settings/slot_bmp tests pass; preview boot, GB shelf and B+Start Dark-theme shots correct.)
