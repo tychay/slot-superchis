@@ -87,7 +87,9 @@ _Static_assert(SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE <= ROM_OFF_HISCRATCH, "slot wi
 _Static_assert(SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE <= ROM_OFF_USRPATCH_DB, "slot window overlaps the patch DBs");
 _Static_assert(SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE <= ROM_OFF_ASSETS_BASE, "slot window overlaps the assets");
 // The SD-booted firmware image sits at 0x08000000 while rom_boot copies assets (cap: FW_MAX_SIZE_KB).
+#ifdef FW_MAX_SIZE_KB   // only defined for the main firmware build (not ingamemenu/directsave payloads)
 _Static_assert(SLOT_OFF_WINDOW >= FW_MAX_SIZE_KB * 1024, "slot window overlaps the boot image");
+#endif
 _Static_assert(SLOT_OFF_WINDOW + SLOT_WINDOW_SIZE <= 0x01000000, "slot window must stay in the 0x08xxxxxx half (SD registers shadow 0x09xxxxxx)");
 _Static_assert(SLOT_PAYLOAD_ADDR == GBA_ROM_BASE + SLOT_OFF_PAYLOAD, "slot payload addr/offset mismatch");
 _Static_assert(SLOT_OFF_PAYLOAD + SLOT_PAYLOAD_MAX <= SLOT_OFF_MAILBOX, "slot payload region overlaps the mailbox");

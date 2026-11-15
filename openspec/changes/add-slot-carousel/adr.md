@@ -21,6 +21,8 @@
 - adr/0007-license-gpl-3-or-later.md - GPL-3.0-or-later with upstream notices retained
 - adr/0008-on-card-layout-compatible-with-slot-advance.md - `/Games/*`, `/SYSTEM/SLOT` compatible with Cart Studio
 
+- adr/0009-slot-sdram-window-in-low-half-browser-cap-12k.md - slot window at 0x08B80000–0x08E7FFFF (0x09 half is SD-register-shadowed); stock browser cap 16k→12k
+
 ## Notes
 
 - design.md D3 (main-loop hooks), D4 (video save/restore), D6 (preview harness) and D9 (budget numbers) are implementation tactics. They are not ADRs; D9's caps are carried by ADR-0005.
