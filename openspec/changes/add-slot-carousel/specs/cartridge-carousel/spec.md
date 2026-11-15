@@ -26,6 +26,16 @@ files and macOS `._*` files. A missing folder MUST yield an empty shelf, not an 
 - **WHEN** a shelf has no files
 - **THEN** the shelf shows an empty-slot message and A does nothing
 
+### Requirement: Large libraries never crash
+Each shelf SHALL hold at most a fixed number of carts (SLOT_SHELF_MAX). Scanning MUST stop
+at the cap without overflowing any buffer, and the shelf MUST show that it was truncated.
+File names up to 255 bytes, including non-ASCII UTF-8, MUST be handled safely.
+
+#### Scenario: Oversized folder (agent, host unit test + preview)
+- **WHEN** a shelf folder contains more files than SLOT_SHELF_MAX
+- **THEN** the shelf shows SLOT_SHELF_MAX carts plus a truncation notice, and navigation
+  across the whole shelf works without a crash
+
 ### Requirement: Navigation
 Left/Right SHALL move between carts (hold to repeat), L/R SHALL switch shelf (GBA ↔ GB ↔ GBC,
 wrapping), with slot. advance's spring motion. The selected cart's name MUST be shown as text.
