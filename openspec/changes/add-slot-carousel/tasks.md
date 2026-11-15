@@ -16,7 +16,7 @@
 - [x] 1.6 Write `README.md` (replacing upstream's README as the top-level doc; move upstream's to `docs/SUPERFW-README.md`). Sections: What it is; Install (copy `.gba`, `Games/GBA|GB|GBC`); Remove; Build (`./build.sh`); Hardware test checklist (M0); Known limitations; Flashing (untested — help wanted, DS Lite recovery link); Credits. Check: every command in README runs as written. (checked: README commands `./build.sh`, `./build.sh clean` run as written)
 - [x] 1.7 Create `TODO.md` listing the deferred features from proposal.md. Check: file exists and matches the proposal list. (checked: TODO.md matches proposal deferred list)
 - [x] 1.8 Copy the build to the mirror as `slot-superchis-M0.gba` (replacing the old one). Sync to the card if `/Volumes/SUPERCHIS` is mounted, following CLAUDE.md sync order. Check: file on card, `dot_clean` done. (checked: card mounted; 3-step sync done, `cmp` identical on card, dot_clean run, card not ejected)
-- [ ] 1.9 **⛔ HARDWARE CHECKPOINT (M0)**: user boots `slot-superchis-M0.gba` and confirms the splash, Info shows `slot.M0`, a GBA and a GB game launch, and in-game exit lands in stock SuperFW (Info shows no `slot.` suffix). STOP until reported.
+- [x] 1.9 **⛔ HARDWARE CHECKPOINT (M0)**: user boots `slot-superchis-M0.gba` and confirms the splash, Info shows `slot.M0`, a GBA and a GB game launch, and in-game exit lands in stock SuperFW (Info shows no `slot.` suffix). STOP until reported. — PASSED 2026-11-15: splash seen; Info "Chis variant slot.M0" (slug 72d33c2c = build-time HEAD); Advance Wars + Tetris play; in-game exit lands in stock v0.22 (4701c4e9). Friction: user must relaunch the fork after every game → task 4.9.
 
 ## 2. M1 — Preview harness spike
 
@@ -42,13 +42,14 @@
 - [ ] 4.6 Select escape hatch: Select returns `SLOT_STOCK_UI`. In the stock UI, Select on a top-level tab returns to the carousel. Check: preview screenshot sequence carousel → (stub stock screen) → carousel shows the same selection.
 - [ ] 4.7 Persist and restore shelf and per-shelf index in `/SYSTEM/SLOT/SETTINGS.TXT` (write before launch). Check: host unit test for the settings parser/serializer round-trip.
 - [ ] 4.8 Replace the M0 text splash with the slot. splash; bump the version suffix to `slot.M1`. Check: screenshot; `strings` check.
+- [ ] 4.9 Return friction mitigation: games launched from the carousel MUST NOT be added to SuperFW's shared recent list (`.superfw/recent.txt`; see `insert_recent_flush()` in `src/menu.c`), so the fork's own `.gba` stays at the top of stock SuperFW's Recent tab. Document in README: set stock SuperFW Settings → recent menu on boot, so returning is power-on → A. Prefer a `// slot:` flag over removing upstream code. Check: host-free code review of the gated call site + hardware checklist item in 5.4.
 
 ## 5. M1 — Preview ROM & delivery
 
 - [ ] 5.1 Add `src/slot/preview_host.c` (stub API: fictional library of ~8 titles per shelf, one empty-shelf toggle) and a `preview` make target producing `slot-preview.gba` (via `./build.sh preview`). Check: it builds; `tools/preview_shots.sh` captures a non-blank carousel.
 - [ ] 5.2 Update README: M1 controls (Left/Right, L/R, A, Select ↔ stock UI), M1 hardware checklist, developer section on the preview ROM and screenshot harness. Check: README matches the current behaviour.
 - [ ] 5.3 Copy the build to the mirror as `slot-superchis-M1.gba`, remove the M0 file, sync to the card if mounted (CLAUDE.md order). Check: on card.
-- [ ] 5.4 **⛔ HARDWARE CHECKPOINT (M1)**: user verifies shelves and order; smooth navigation (note any stutter); Advance Wars launch, save, relaunch with the save intact; Tetris and Link's Awakening DX launch; B in the load popup returns to the carousel; Select → stock Settings/Info work → back to the carousel; position restored after power cycle; stock file browser still lists files correctly (SDRAM sanity). STOP until reported. If stutter is reported, fix it (design Risks: IWRAM blitter, WAITCNT, fewer motion frames) before M2.
+- [ ] 5.4 **⛔ HARDWARE CHECKPOINT (M1)**: user verifies shelves and order; smooth navigation (note any stutter); Advance Wars launch, save, relaunch with the save intact; Tetris and Link's Awakening DX launch; B in the load popup returns to the carousel; Select → stock Settings/Info work → back to the carousel; position restored after power cycle; after an in-game exit, stock Recent tab shows the fork `.gba` first (task 4.9); stock file browser still lists files correctly (SDRAM sanity). STOP until reported. If stutter is reported, fix it (design Risks: IWRAM blitter, WAITCNT, fewer motion frames) before M2.
 
 ## 6. M2 — Art, themes, sound
 
