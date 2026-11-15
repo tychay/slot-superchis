@@ -111,6 +111,11 @@ SLOT_CFLAGS=-Os -ggdb \
             -Wall -Wextra -Isrc -I. \
             -mthumb -ffreestanding -fno-builtin -fno-tree-loop-distribute-patterns
 
+# slot: hardware diagnostic payload (src/slot/slot_diag.h): make SLOT_DIAG=1
+ifeq ($(SLOT_DIAG),1)
+SLOT_CFLAGS += -DSLOT_DIAG
+endif
+
 SLOT_PAYLOAD_OFFSET=12058624   # == SLOT_OFF_PAYLOAD (0x00B80000, src/slot/slot_layout.h)
 
 SLOTFILES=src/slot/payload_entry.c \

@@ -27,6 +27,7 @@
 #include "slot_timing.h"
 #include "slot_fast_cache.h"
 #include "slot_transition.h"
+#include "slot/slot_diag.h"
 
 #define SLOT_DIR "/SYSTEM/SLOT"
 #define SLOT_CONFIG SLOT_DIR "/SETTINGS.TXT"
@@ -356,6 +357,32 @@ static int Slot_Run(unsigned boot)
     }
     /* slot: show "Reading shelf..." (display on, no black) before the first SD access, so a hang
      * in settings/library/scan leaves a readable screen instead of white (task 5.3b). */
+#ifdef SLOT_DIAG
+    {   /* hardware diagnostic: display on, black, trail of blocks (slot_diag.h) */
+        volatile uint16_t *v=SLOT_VRAM;unsigned i;
+        SLOT_BLDCNT=0;SLOT_BLDY=0;for(i=0;i<240*160;i++)v[i]=0;
+        SLOT_DISPCNT=SLOT_MODE3_BG2;
+        SLOT_DIAG_BEGIN(0);Slot_DiagSelfTest(slot_background);SLOT_DIAG_END(0);
+        SLOT_DIAG_BEGIN(1);Slot_Background();SLOT_DIAG_END(1);
+        SLOT_DIAG_BEGIN(2);Slot_Front();SLOT_DIAG_END(2);
+        SLOT_DIAG_BEGIN(3);Slot_Centred("Reading shelf...",73,SLOT_INK);SLOT_DIAG_END(3);
+        SLOT_DIAG_BEGIN(4);Slot_ReadConfig();SLOT_DIAG_END(4);
+        SLOT_DIAG_BEGIN(5);Slot_CheckLibrary();SLOT_DIAG_END(5);
+        Slot_DiagBlock(0,6,slot_library_state==0?DIAG_GREEN:slot_library_state==1?DIAG_BLUE:DIAG_RED);
+        SLOT_DIAG_BEGIN(7);Slot_ResetCache();SLOT_DIAG_END(7);
+        SLOT_DIAG_BEGIN(8);slot_shelf_clear(&slot_shelf);SLOT_DIAG_END(8);
+        SLOT_DIAG_BEGIN(9);i=slot_host->f_opendir(&slot_dir,slot_dirs[slot_platform]);SLOT_DIAG_END(9);
+        Slot_DiagBlock(0,10,i==FR_OK?DIAG_GREEN:DIAG_RED);
+        if(i==FR_OK){
+            SLOT_DIAG_BEGIN(11);slot_scan(&slot_shelf,slot_platform,(unsigned)strlen(slot_dirs[slot_platform]),Slot_NextEntry,0);SLOT_DIAG_END(11);
+            SLOT_DIAG_BEGIN(12);slot_host->f_closedir(&slot_dir);SLOT_DIAG_END(12);
+            Slot_DiagBlock(0,13,slot_shelf.count?DIAG_GREEN:DIAG_RED);
+        }
+        Slot_DiagBlock(2,0,DIAG_BLUE);            /* row 2: press A to continue to the carousel */
+        while(!(slot_host->get_keypress()&SLOT_KEY_A))Slot_WaitFrame();
+        SLOT_DIAG_BEGIN(14);Slot_Present();SLOT_DIAG_END(14);   /* overwritten by the copy if it works */
+    }
+#endif
     Slot_ShowReading();SLOT_DISPCNT=SLOT_MODE3_BG2;Slot_FadeIn();
     Slot_ReadConfig();Slot_CheckLibrary();
     Slot_Scan();
