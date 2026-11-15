@@ -139,11 +139,11 @@ extern const uint8_t pv_bmp_gba_a[], pv_bmp_gba_b[], pv_bmp_gba_flat[], pv_bmp_g
 /* Cart Studio art served for a few of the fictional titles (task 6.5); every other cart shows the plain cart. */
 static const struct { const char *path; const uint8_t *data; unsigned size; } art[] = {
   { "/SYSTEM/SLOT/CARTS/GBA/Aurora Quest.bmp",           pv_bmp_gba_a,    17094 },
-  { "/SYSTEM/SLOT/CARTS/GBA/Brick Breaker Advance.bmp",  pv_bmp_gba_b,    17094 },
+  { "/SYSTEM/SLOT/CARTS/GBA/Harbor Heist.bmp",           pv_bmp_gba_b,    17094 },
   { "/SYSTEM/SLOT/CARTS_FLAT/GBA/Aurora Quest.bmp",      pv_bmp_gba_flat, 17094 },
   { "/SYSTEM/SLOT/CARTS/GB/Pocket Pinball.bmp",          pv_bmp_gb,       23350 },
-  { "/SYSTEM/SLOT/CARTS/GBC/Crystal Caverns.bmp",        pv_bmp_gbc_a,    23350 },
-  { "/SYSTEM/SLOT/CARTS/GBC/Neon Racer.bmp",             pv_bmp_gbc_b,    23350 },
+  { "/SYSTEM/SLOT/CARTS/GBC/Neon Racer.bmp",             pv_bmp_gbc_a,    23350 },
+  { "/SYSTEM/SLOT/CARTS/GBC/Pixel Farm.bmp",             pv_bmp_gbc_b,    23350 },
 };
 #define ART_COUNT (sizeof(art) / sizeof(*art))
 #define FAKE_FILES 3

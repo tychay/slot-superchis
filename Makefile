@@ -258,7 +258,7 @@ slot-tests:
 	./build/tests/slot_scan_test
 	gcc $(SLOT_TEST_CFLAGS) -o build/tests/slot_settings_test tests/slot_settings_test.c src/slot/slot_settings.c src/slot/slot_scan.c
 	./build/tests/slot_settings_test
-	# slot: Cart Studio art format (task 6.2): real converter output generated here + converted real labels.
+	# slot: Cart Studio art format (task 6.2): real converter output generated here + converted fictional labels (tests/make_fixture_labels.py).
 	python3 tests/make_art_fixtures.py build/tests/art
 	gcc $(SLOT_TEST_CFLAGS) -o build/tests/slot_bmp_test tests/slot_bmp_test.c
 	./build/tests/slot_bmp_test build/tests/art tests/fixtures/art

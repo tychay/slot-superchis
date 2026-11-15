@@ -28,11 +28,11 @@ Target hardware: SuperChis Prime GBA flashcart only (`BOARD=chis`). English only
   then `tools/preview_shots.sh slot-preview.gba <sequence>` (PNGs in `build/shots/`).
 
 ## Test card
-- Mirror: `/Volumes/16TB_EXT/emulation/flashcarts/SUPERCHIS/` (edit here first).
-- Card: `/Volumes/SUPERCHIS`. Sync order (card holds hardware-generated state):
-  1. card → mirror: `rsync -rt --modify-window=1 --exclude '._*' /Volumes/SUPERCHIS/{SAVEGAME,.superfw,SYSTEM} <mirror>/`
+- Mirror: `<mirror>`, a local copy of the card contents (edit here first).
+- Card: `<card>` (e.g. `/Volumes/SUPERCHIS` on macOS). Sync order (card holds hardware-generated state):
+  1. card → mirror: `rsync -rt --modify-window=1 --exclude '._*' <card>/{SAVEGAME,.superfw,SYSTEM} <mirror>/`
      (SAVEGAME = saves, .superfw = SuperFW state, SYSTEM = Cart Studio art written on the card).
-  2. mirror → card: `rsync -rt --modify-window=1 --delete --exclude '.metadata_never_index' --exclude '._*' <mirror>/ /Volumes/SUPERCHIS/`
-  3. `dot_clean -m /Volumes/SUPERCHIS`, then `diskutil eject /Volumes/SUPERCHIS`.
+  2. mirror → card: `rsync -rt --modify-window=1 --delete --exclude '.metadata_never_index' --exclude '._*' <mirror>/ <card>/`
+  3. `dot_clean -m <card>`, then `diskutil eject <card>`.
   Never `--delete` mirror → card without step 1. Only the user verifies on hardware.
 - Library layout: `Games/GBA`, `Games/GB`, `Games/GBC`; art in `/SYSTEM/SLOT` (Cart Studio).

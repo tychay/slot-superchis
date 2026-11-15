@@ -4,7 +4,7 @@
  * usage: slot_bmp_test <dir> [<dir> ...] [--games <Games dir>]
  * Each <dir> is a tree with SYSTEM/SLOT/{CARTS,CARTS_FLAT}/{GBA,GB,GBC}/<stem>.bmp as written by
  * vendor/slot-advance/tools/convert_labels.py (generated in the build image by tests/make_art_fixtures.py,
- * or converted real labels in tests/fixtures/art, flat layout CARTS/GBA/..).  Every cart BMP must pass
+ * or converted fictional labels in tests/fixtures/art, flat layout CARTS/GBA/..).  Every cart BMP must pass
  * Slot_BMPValid for its shelf's size and decode row by row to the screen format.
  * With --games, every ROM name in <Games>/{GBA,GB,GBC} must resolve to an existing art file through
  * Slot_ArtPathFor (what the carousel opens), checked against the first <dir>.
