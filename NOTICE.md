@@ -36,18 +36,21 @@ GPL-3.0-or-later). Each file's header names its source and what was changed.
 | `slot_motion.h` | `slot_motion.h` | copied unmodified |
 | `slot_navigation.h` | `slot_navigation.h` | copied; `Slot_DialogCanClose` dropped |
 | `slot_hotkeys.h` | `slot_hotkeys.h` | copied unmodified (validates two settings values) |
-| `slot_format.h` | `slot_format.h` | `Slot_IndexForCount`, `Slot_ParseNatural` kept; BMP checks dropped (M2) |
+| `slot_format.h` | `slot_format.h` | `Slot_IndexForCount`, `Slot_ParseNatural`, `Slot_Le16/32`, `Slot_BMPValid` kept; `Slot_DecodeBMP555` as a row decoder; `Slot_ArtPathFor` new (M2) |
 | `slot_timing.h` | `slot_timing.h` | adapted: no IRQ, ticks replayed from the host frame counter |
 | `slot_transition.h` | `slot_transition.h` | adapted: fades and splash on gba_compat.h; splash is RLE-packed |
-| `slot_render.h` | `slot_render.h` | adapted: Wood theme only, SDRAM frame buffer, plain carts, new footer/title rows; settings/About/Help/board pages dropped |
+| `slot_render.h` | `slot_render.h` | adapted: Wood/Dark/Light themes and flat variants, art from the SDRAM pack, per-cart span tables in SDRAM, SDRAM frame buffer, new footer/title rows; settings/About/Help/board pages dropped |
 | `slot_fast_cache.h` | `slot_fast_cache.h` | adapted: EWRAM fast banks dropped, `Slot_DrawShelfCarts` kept |
-| `slot_blit.s` | `slot_blit.s` | copied; `Slot_DecodeBMP555` dropped (M2) |
-| `slot_frontend.c` | `slot_frontend.h` | adapted: host API instead of DS Style, pure scan/settings modules, launch via mailbox; settings pages, cart back, clock, username, sounds, hotkeys, eject-replay, BMP art loader dropped |
+| `slot_blit.s` | `slot_blit.s` | copied; `Slot_CopyMem` added, BMP decoding is in `slot_format.h` |
+| `slot_frontend.c` | `slot_frontend.h` | adapted: host API instead of DS Style, pure scan/settings modules, launch via mailbox; settings pages, cart back, clock, username, hotkeys, eject-replay dropped; BMP art loader (row-streamed) and themes ported (M2) |
 | `slot_scan.c`, `slot_scan.h` | `slot_frontend.h` (Slot_Scan, Slot_SelectDirectory) | rewritten as pure functions with a shelf cap |
 | `slot_settings.c`, `slot_settings.h` | `slot_frontend.h` (Slot_ReadConfigFile, Slot_SaveConfig) | rewritten on a memory buffer; same file format |
+| `slot_audio.h` | `slot_audio_driver.h` | rewritten: same FIFO A / Timer 0 / DMA1 register recipe, but streamed from a 704-byte IWRAM buffer refilled each VBlank (no IRQ, DMA never reads SDRAM; ADR-0011) |
 
-Not copied (post-M1): `slot_assets.h` is never copied: `tools/slot_assets_gen.py` extracts the few
-arrays M1 draws (wood background, dark front/back bands, plain GBA/GB/GBC cartridges, font, splash;
-artwork by Markus) from the submodule into a build-time generated file `src/slot/slot_art_gen.c`.
-`slot_audio_driver.h`, `slot_sounds.h`, `slot_cartridge_settings.h`, `slot_clock.h`,
-`slot_return*.h/.inc`, `slot_username.h` and the emulator/DS Style kernel files are not used.
+Not copied: `slot_assets.h` and the original insert clip (`assets/slot/audio/insert-48000-s16.pcm`)
+are never copied into the repo: `tools/slot_pack.py` reads them from the submodule at build time
+and writes `res/slot_assets.pack` (wood background, dark/light bands, plain and flat carts,
+font, splash, insert sound resampled to 21,024 Hz; artwork by Markus, sounds from slot.), a build
+output that `rom_boot.S` unpacks into SDRAM.
+`slot_cartridge_settings.h`, `slot_clock.h`, `slot_return*.h/.inc`, `slot_username.h` and the
+emulator/DS Style kernel files are not used.

@@ -306,3 +306,18 @@ Files from `vendor/slot-advance/common/` are copied into `src/slot/`.
   pixel write is a cartridge-bus write. Dirty-band redraw and the IWRAM pixel loops are in; the M1
   hardware checkpoint decides whether more is needed (banded rendering through an IWRAM tile, WAITCNT).
 
+
+## M2 implementation notes (section 6)
+
+- **Pack (D5 refinement, ADR-0011).** The pack is built by `tools/slot_pack.py` (not `slot_assets_gen.py`), compressed with
+  apultra and unpacked by `rom_boot.S` into `0x08E00000-0x08E7FFFF`, the top of the window; scratch is
+  `0x08BC1000-0x08DFFFFF` (2.25 MiB: frame 75 KiB, cache 116 KiB, span tables 1.1 KiB, shelf up to 260 KiB).
+  The payload image no longer holds art (15 KB).
+- **Art loader.** BMPs are decoded row by row through an IWRAM buffer (FatFs never writes SDRAM) and copied
+  with `Slot_Copy`. Opaque-span tables are per cache slot and live in SDRAM, built from the decoded rows,
+  because Cart Studio outlines differ per ROM (GB vs GBC shape). Shell colours are baked into the BMPs by
+  the converter. The initial fill of a shelf is synchronous; scrolling streams 24 rows per frame.
+- **Themes.** Wood/Dark/Light and the flat (`Skeuomorphic=0`) variants; cycled with B+Start (L+Start would
+  switch shelf on the L press).
+- **Sound.** See ADR-0011: 704-byte IWRAM buffer refilled every VBlank, Timer 0 period chosen so a frame
+  is exactly 352 samples, no IRQ, DMA1 reads only IWRAM, full stop on every return.

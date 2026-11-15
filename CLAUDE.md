@@ -15,6 +15,7 @@ Target hardware: SuperChis Prime GBA flashcart only (`BOARD=chis`). English only
 - SuperCard SDRAM (hardware-verified 2026-11-15, SLOT_DIAG run): no byte stores (`strb` corrupts the
   neighbour; ADR-0010) and no DMA with an SDRAM source (wrong data / hang). Bulk copies use
   `Slot_Copy` (IWRAM ARM ldm/stm). mGBA cannot catch either; use `make SLOT_DIAG=1` on hardware.
+- The art/sound pack is built from the submodule (`tools/slot_pack.py`), compressed and unpacked at boot into SDRAM `0x08E00000` (ADR-0011). Sound DMA must read IWRAM only (`slot_audio.h`).
 - Keep README.md install/test steps current with every user-visible change.
 - Respect ADRs in `adr/` (immutable once accepted; supersede, don't edit).
 

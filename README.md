@@ -5,12 +5,16 @@ for the **SuperChis Prime** whose home screen is a [slot.](https://github.com/sl
 cartridge carousel (ported from [slot. advance](https://github.com/FrankieT19/slot-advance)).
 Licensed GPL-3.0-or-later, see `LICENSE` and `NOTICE.md`.
 
-## What it is (current status: M1)
+## What it is (current status: M2)
 
-At **M1** the fork boots to a cartridge carousel instead of SuperFW's file browser:
+At **M2** the fork boots to a cartridge carousel instead of SuperFW's file browser:
 
-- a short "slot." splash, then three shelves of plain cartridges read from `Games/GBA`,
+- a short "slot." splash, then three shelves of cartridges read from `Games/GBA`,
   `Games/GB` and `Games/GBC` on the SD card, with the selected cart's name shown as text;
+- **label art and shell colours** from slot. Cart Studio (see "Cart Studio art" below); carts
+  without art stay plain silhouettes with the name on the label;
+- **Wood, Dark and Light themes** (hold B, press Start to cycle);
+- slot.'s **insert sound** when you press A;
 - slot.'s spring motion and the insert animation;
 - pressing A hands the game to SuperFW's own launcher: GBA games open SuperFW's load popup
   (saves, patches, in-game menu all work as in stock SuperFW), GB/GBC games start the bundled
@@ -19,19 +23,19 @@ At **M1** the fork boots to a cartridge carousel instead of SuperFW's file brows
   becomes unreachable;
 - the last shelf and the selected cart of each shelf are remembered.
 
-Not in M1 (see `TODO.md`): label art and Cart Studio support, themes (Wood only), sounds, the
-settings screen, return-to-carousel after a game exits, other systems. Carts are plain
-silhouettes with the game's name on the label until M2.
+Not yet (see `TODO.md`): the slot.-style settings screen, return-to-carousel after a game exits,
+other systems.
 
 Target hardware: SuperChis Prime only (`BOARD=chis`). English only.
 
-## Controls (M1)
+## Controls (M2)
 
 | Where | Key | Does |
 |---|---|---|
 | Carousel | Left / Right | previous / next cart (hold to repeat: first after 400 ms, then every 200 ms; wraps around) |
 | Carousel | L / R | previous / next shelf (GBA, GB, GBC, wrapping) |
 | Carousel | A | play the insert animation, then open the game in SuperFW's launcher |
+| Carousel | hold B, press Start | next theme: Wood, Dark, Light (saved in `SETTINGS.TXT`) |
 | Carousel | Select | open SuperFW's stock UI |
 | SuperFW load popup | B | cancel, back to the carousel with the same cart selected |
 | Stock Settings / UI / Tools / Info tab | Select | back to the carousel |
@@ -49,7 +53,7 @@ are skipped and counted in the footer.
 This is delivered as a `.gba` file that you run from the SD card. Nothing is flashed.
 
 1. Your SuperChis must already run stock SuperFW from its flash (that is how you launch the fork).
-2. Copy `slot-superchis-M1.gba` (or your own `superfw.gba` build, see Build) to the SD card.
+2. Copy `slot-superchis-M2.gba` (or your own `superfw.gba` build, see Build) to the SD card.
    Any folder works.
 3. Put your games, **unzipped**, in `Games/GBA` (`.gba`), `Games/GB` (`.gb`) and `Games/GBC`
    (`.gbc`) at the card root. Folders are not searched recursively; hidden files and macOS `._*`
@@ -61,9 +65,38 @@ This is delivered as a `.gba` file that you run from the SD card. Nothing is fla
    `.gba` is the first entry there because games launched from the carousel are *not* added to
    SuperFW's recent list. Power on, press A, and you are back in the carousel.
 
+6. Optional, for label art: follow "Cart Studio art" below.
+
 Saves and SuperFW's settings stay in the usual `SAVEGAME/` and `.superfw/` folders. The carousel's
 own state is `SYSTEM/SLOT/SETTINGS.TXT` (slot. advance's format, so the same card works with
 slot. Cart Studio later).
+
+## Cart Studio art
+
+The carousel shows the cart images that [slot. Cart Studio](https://studio.slot-cfw.fyi) makes, read
+from `SYSTEM/SLOT/CARTS/<GBA|GB|GBC>/<ROM name>.bmp` on the card (`CARTS_FLAT/` for the flat
+look). The file name is the ROM's file name without its extension, exactly. A cart with no BMP
+shows the plain silhouette with its name.
+
+Cart Studio does not recognise a SuperChis card (it looks for EZ-Flash kernel files), so it offers
+a **"Download"** `labels.zip` instead of writing to the card. The steps:
+
+1. Open studio.slot-cfw.fyi in Chrome or Edge and choose the card (or any folder with
+   `Games/GBA`, `Games/GB`, `Games/GBC` in it) so it can match your ROMs. Make your labels.
+2. Choose **Download for slot. advance** (not "Write to card") and save `labels.zip`.
+3. Convert it into the card's `SYSTEM/SLOT` folder. On macOS or Linux, with Docker running:
+
+   ```sh
+   tools/convert_labels.sh labels.zip /Volumes/SUPERCHIS      # the card root, the folder that holds Games/
+   ```
+
+   This runs the vendored slot. advance converter in the build container, reads the ROM headers in
+   `Games/` to pick each cart's shell colour and outline, and writes `SYSTEM/SLOT/CARTS`,
+   `CARTS_FLAT` and `LABELS` onto the card. On Windows use slot. advance's `Convert Labels.bat`
+   / Label Converter.exe (in `vendor/slot-advance/`) pointed at `labels.zip` and the card.
+4. Put the card in the cart and boot the fork. Art streams in while you scroll (a cart may show
+   its plain silhouette for a few frames first). To use the flat look, set `Skeuomorphic=0` in
+   `SYSTEM/SLOT/SETTINGS.TXT`.
 
 ## Remove
 
@@ -118,10 +151,28 @@ Run the script without arguments for the step grammar (`wait:N`, `KEY`, `hold:KE
 **Host unit tests.** `./build.sh slot-tests` compiles and runs, in the build container with
 AddressSanitizer, the tests for the pure carousel modules: `tests/slot_scan_test.c` (filter, sort,
 the 5,000-entry / 255-byte-name large-library cases) and `tests/slot_settings_test.c`
-(`SETTINGS.TXT` round trip and validation). (Upstream's own `tests/Makefile` is unchanged; it needs
+(`SETTINGS.TXT` round trip and validation), and `tests/slot_bmp_test.c` (Cart Studio art: the
+real converter's output, generated in the container, plus converted real labels in
+`tests/fixtures/art`, must validate and decode to the expected sizes). (Upstream's own `tests/Makefile` is unchanged; it needs
 `lcov` and OpenSSL, which the build image does not install.)
 
-## Hardware test checklist (M1)
+## Hardware test checklist (M2)
+
+Install `slot-superchis-M2.gba` and run Cart Studio as described above, then confirm:
+
+- [ ] The "slot." splash, "Reading shelf...", then the carousel. Carts that have art show their
+      labels and shell colours; carts without art show the plain silhouette with the name.
+- [ ] Hold Right across a shelf where every cart has art: scrolling continues without long
+      freezes (art may appear a frame or two late; note any stutter).
+- [ ] Hold B and press Start: the theme cycles Wood, Dark, Light and the choice survives a power
+      cycle. The footer text is readable in all three.
+- [ ] Press A on a GBA game: the insert sound plays with the insert animation, the game starts,
+      and the **game's own audio is clean** afterwards (no hiss, crackle or silence). Repeat
+      with a GB game and Advance Wars. Mute check: set `Sounds=0` in `SETTINGS.TXT` and A is silent.
+- [ ] Everything in the M1 checklist below still works (launch, saves, B in the popup, Select
+      round trip, Recent, stock browser).
+
+### M1 checklist (regression)
 
 Boot the file from stock SuperFW, then confirm:
 
@@ -144,8 +195,11 @@ Boot the file from stock SuperFW, then confirm:
   (see step 5 of Install for the quick way back).
 - The stock file browser lists at most 12,288 entries per folder (was 16,384): SDRAM was needed for
   the carousel's window (see `openspec/changes/add-slot-carousel/design.md`, "SDRAM map (audited)").
-- Carts are plain silhouettes with the name on the label (no label art yet), Wood theme only, no
-  sounds, no settings screen.
+- No settings screen: themes cycle with B+Start, everything else is `SYSTEM/SLOT/SETTINGS.TXT`.
+- Art must be the converter's exact format (16-bit RGB555 BMP, 120x71 GBA / 104x112 GB and GBC);
+  other BMPs are ignored and the plain cart is shown.
+- The insert sound is a one-shot played from a small buffer refilled each frame: if the carousel
+  ever misses two VBlanks in a row while it plays (not seen in testing) it may crackle.
 - Only the SuperChis Prime board is targeted; other SuperCard variants are untested.
 
 ## Flashing (untested, help wanted)
