@@ -5,6 +5,11 @@
  * Slot_Scan, Slot_Play, Slot_ChangeShelf, Slot_DrawShelf, Slot_Present, cache and config code;
  * slot. advance v1.2.4, commit a2a2fe9, GPL-3.0-or-later).
  *
+ * Changes for M2 (tasks 6.1-6.4): the art comes from the SDRAM asset pack; carts show the Cart Studio
+ * BMPs from /SYSTEM/SLOT/CARTS[_FLAT] (Slot_BeginArt/Slot_PumpArt, row-streamed: 24 rows per frame, one
+ * row at a time through an IWRAM buffer, so FatFs never writes SDRAM and every SDRAM store is a
+ * 16/32-bit Slot_Copy); Wood/Dark/Light themes (hold B, press Start); the insert sound (slot_audio.h).
+ *
  * Changes for M1 (design D2/D3/D7):
  *  - all FatFs access goes through the host API; none of the DS Style kernel's globals, file
  *    records, audio or launcher calls remain (task 4.2 greps for them);
@@ -27,6 +32,7 @@
 #include "slot_timing.h"
 #include "slot_fast_cache.h"
 #include "slot_transition.h"
+#include "slot_audio.h"
 #include "slot/slot_diag.h"
 
 #define SLOT_DIR "/SYSTEM/SLOT"
@@ -40,15 +46,18 @@
 #define SLOT_FRAME_BYTES (240u*160u*2u)
 #define SLOT_CACHE_STRIDE (104u*112u*2u)      /* the larger (GB/GBC) cart */
 #define SLOT_CACHE_BYTES (SLOT_CACHE_SLOTS*SLOT_CACHE_STRIDE)
-#define SLOT_SCRATCH_MIN (SLOT_FRAME_BYTES+SLOT_CACHE_BYTES+SLOT_SHELF_INDEX_BYTES+4096u)
+#define SLOT_SPANS_BYTES (SLOT_CACHE_SLOTS*sizeof(SlotOpaqueSpans))
+#define SLOT_SCRATCH_MIN (SLOT_FRAME_BYTES+SLOT_CACHE_BYTES+SLOT_SPANS_BYTES+SLOT_SHELF_INDEX_BYTES+4096u)
 _Static_assert(120u*71u*2u<=SLOT_CACHE_STRIDE && SLOT_CACHE_STRIDE%4==0,"cart cache stride");
 /* Three full shelves (and more) would fit the window's scratch: the memory cap is by construction. */
-_Static_assert(SLOT_FRAME_BYTES+SLOT_CACHE_BYTES+3u*SLOT_SHELF_BYTES<=SLOT_SCRATCH_SIZE,
+_Static_assert(SLOT_FRAME_BYTES+SLOT_CACHE_BYTES+SLOT_SPANS_BYTES+3u*SLOT_SHELF_BYTES<=SLOT_SCRATCH_SIZE,
                "frame + cache + 3 shelves must fit the SDRAM scratch");
 _Static_assert(SLOT_SHELF_MAX<=65535u,"shelf order is uint16_t");
 
-static char slot_launch[SLOT_MAX_PATH+2] __attribute__((aligned(4)));   /* launch path staging (IWRAM) */
+static char slot_launch[SLOT_MAX_PATH+2] __attribute__((aligned(4)));   /* launch path staging, also the art path (IWRAM) */
 typedef struct { int index; unsigned valid; } SlotCache;
+#define SLOT_ART_ROWS 24                  /* BMP rows decoded per frame while scrolling */
+static unsigned slot_art_active,slot_art_bank,slot_art_row,slot_art_changed;
 static SlotCache slot_cache[SLOT_CACHE_SLOTS];
 static uint16_t *slot_cache_base;
 static struct slot_shelf slot_shelf;
@@ -92,9 +101,14 @@ static void Slot_SetIndex(unsigned index)
 {
     if(slot_cfg.v[SLOT_CFG_GBA+slot_platform]!=index){slot_cfg.v[SLOT_CFG_GBA+slot_platform]=index;slot_cfg_dirty=1;}
 }
+static void Slot_CancelArt(void)
+{
+    if(slot_art_active){slot_host->f_close(&slot_file);slot_art_active=0;}
+}
 static void Slot_ResetCache(void)
 {
     unsigned i;
+    Slot_CancelArt();slot_art_changed=0;
     for(i=0;i<SLOT_CACHE_SLOTS;i++){slot_cache[i].valid=0;slot_cache[i].index=-1;slot_opaque[i].pixels=0;}
 }
 static void Slot_Stem(unsigned index,char *out,unsigned size)
@@ -113,13 +127,16 @@ static SlotCache *Slot_GetCache(int index)
     for(i=0;i<SLOT_CACHE_SLOTS;i++)if(slot_cache[i].valid && slot_cache[i].index==index)return &slot_cache[i];
     return 0;
 }
+static uint16_t *Slot_BankPixels(unsigned bank){return slot_cache_base+bank*(SLOT_CACHE_STRIDE/2);}
 static const uint16_t *Slot_CachedPixels(SlotCache *cache)
 {
-    return slot_cache_base+(unsigned)(cache-slot_cache)*(SLOT_CACHE_STRIDE/2);
+    return Slot_BankPixels((unsigned)(cache-slot_cache));
 }
-/* Plain silhouette with the cart's name on its label panel. */
-static void Slot_LoadFallback(uint16_t *pixels,const char *name)
+/* Plain silhouette with the cart's name on its label panel (no art, or art that failed to load). */
+static void Slot_LoadFallback(unsigned bank,const char *name)
 {
+    uint16_t *pixels=Slot_BankPixels(bank);
+    const unsigned char (*font)[12]=slot_font;
     unsigned w=slot_widths[slot_platform],h=slot_heights[slot_platform],row,col,n;
     unsigned panel_x=slot_platform==0?16:15,panel_y=slot_platform==0?17:slot_platform==1?32:37;
     unsigned panel_w=slot_platform==0?88:74,panel_h=slot_platform==0?45:66;
@@ -132,32 +149,112 @@ static void Slot_LoadFallback(uint16_t *pixels,const char *name)
         for(i=0;i<count;i++) {
             unsigned c=(unsigned char)name[n*cells+i];if(c<32 || c>126)c='?';
             for(row=0;row<12;row++)for(col=0;col<6;col++)
-                if(slot_font[c][row]&(128>>col))pixels[(y+row)*w+x+i*6+col]=SLOT_RGB(40,40,47);
+                if(font[c][row]&(128>>col))pixels[(y+row)*w+x+i*6+col]=SLOT_RGB(40,40,47);
         }
     }
+    Slot_SpansFromImage(bank,Slot_Fallback(slot_platform),w,h);
+    Slot_RegisterOpaque(bank,pixels);
 }
-static void Slot_FillCacheAround(int centre)
+
+/* --- Cart Studio art: /SYSTEM/SLOT/CARTS[_FLAT]/<GBA|GB|GBC>/<file stem>.bmp (task 6.2) --- */
+/* Build the art path for shelf position `index` in slot_launch; 0 if it does not fit. */
+static unsigned Slot_ArtPath(unsigned index)
 {
-    int wanted[5],d; unsigned i,j;
-    /* Keep neighbours during a move. */
-    for(d=-2;d<=2;d++) wanted[d+2]=Slot_Normalize(centre+d);
+    return Slot_ArtPathFor(slot_launch,SLOT_MAX_PATH,slot_skeuo,slot_platform_names[slot_platform],slot_shelf_name(&slot_shelf,index));
+}
+/* The cart in `bank` is finished: art decoded (missing=0) or the plain cart with its name. */
+static void Slot_FinishArt(unsigned missing)
+{
+    unsigned bank=slot_art_bank;SlotCache *cache=&slot_cache[bank];
+    Slot_CancelArt();
+    if(missing){Slot_Stem((unsigned)cache->index,slot_line,sizeof(slot_line));Slot_LoadFallback(bank,slot_line);}
+    else Slot_RegisterOpaque(bank,Slot_BankPixels(bank));
+    cache->valid=1;slot_art_changed=1;
+}
+/* Open the art for `index` into `bank`; on any problem the plain cart is used. Returns 1 while rows remain. */
+static unsigned Slot_BeginArt(unsigned bank,int index)
+{
+    UINT got;unsigned w=slot_widths[slot_platform],h=slot_heights[slot_platform];
+    slot_art_bank=bank;slot_art_row=0;slot_cache[bank].valid=0;slot_cache[bank].index=index;slot_opaque[bank].pixels=0;
+    if(Slot_ArtPath((unsigned)index) && slot_host->f_open(&slot_file,slot_launch,FA_READ)==FR_OK) {
+        slot_art_active=1;
+        if(slot_host->f_read(&slot_file,slot_row,54,&got)==FR_OK && got==54 &&
+           Slot_BMPValid((const unsigned char*)slot_row,(unsigned)slot_file.obj.objsize,w,h))return 1;
+    }
+    Slot_FinishArt(1);return 0;
+}
+static void Slot_PumpArt(void)
+{
+    unsigned w,h,rows,r,dy;UINT got;
+    if(!slot_art_active)return;
+    w=slot_widths[slot_platform];h=slot_heights[slot_platform];rows=h-slot_art_row;
+    if(rows>SLOT_ART_ROWS)rows=SLOT_ART_ROWS;
+    for(r=0;r<rows;r++) {
+        if(slot_host->f_read(&slot_file,slot_row,w*2,&got)!=FR_OK || got!=w*2){Slot_FinishArt(1);return;}
+        Slot_DecodeBMP555Row(slot_row,w);
+        dy=h-1-(slot_art_row+r);                 /* BMP rows are bottom-up */
+        SLOT_COPY(Slot_BankPixels(slot_art_bank)+dy*w,slot_row,w*2);   /* 32/16-bit stores into SDRAM */
+        Slot_SpanStore(slot_art_bank,dy,slot_row,w);
+    }
+    slot_art_row+=rows;
+    if(slot_art_row==h)Slot_FinishArt(0);
+}
+/* Which cache banks keep which shelf positions around `centre`; returns the wanted list. */
+static void Slot_Wanted(int centre,int wanted[5])
+{
+    static const int order[5]={0,1,-1,2,-2};
+    unsigned i,j;
+    for(j=0;j<5;j++)wanted[j]=Slot_Normalize(centre+order[j]);
+    /* a reservation without a running job (cancelled) is stale */
+    for(i=0;i<SLOT_CACHE_SLOTS;i++)
+        if(!slot_cache[i].valid && !(slot_art_active && slot_art_bank==i)){slot_cache[i].index=-1;slot_opaque[i].pixels=0;}
+    /* free banks that no longer hold a wanted cart (also a pending one: its job is cancelled) */
     for(i=0;i<SLOT_CACHE_SLOTS;i++) {
         unsigned keep=0;
-        for(j=0;j<5;j++) if(slot_cache[i].index==wanted[j]) keep=1;
-        if(!keep) slot_cache[i].valid=0;
-    }
-    for(j=0;j<5;j++) {
-        int index=wanted[j];
-        if(index<0 || Slot_GetCache(index)) continue;
-        for(i=0;i<SLOT_CACHE_SLOTS;i++) if(!slot_cache[i].valid) break;
-        if(i==SLOT_CACHE_SLOTS) break;
-        Slot_Stem((unsigned)index,slot_line,sizeof(slot_line));
-        Slot_LoadFallback(slot_cache_base+i*(SLOT_CACHE_STRIDE/2),slot_line);
-        Slot_RegisterOpaque(i,slot_cache_base+i*(SLOT_CACHE_STRIDE/2),slot_platform);
-        slot_cache[i].index=index; slot_cache[i].valid=1;
+        for(j=0;j<5;j++)if(slot_cache[i].index==wanted[j])keep=1;
+        if(!keep){if(slot_art_active && slot_art_bank==i)Slot_CancelArt();slot_cache[i].valid=0;slot_cache[i].index=-1;slot_opaque[i].pixels=0;}
     }
 }
+static int Slot_FreeBank(const int wanted[5])
+{
+    unsigned i,j;
+    for(i=0;i<SLOT_CACHE_SLOTS;i++){
+        unsigned keep=0;
+        for(j=0;j<5;j++)if(slot_cache[i].index==wanted[j])keep=1;
+        if(!keep)return (int)i;
+    }
+    return -1;
+}
+/* Shelf entry: load every wanted cart now, so the first frame is complete. */
+static void Slot_FillCacheAround(int centre)
+{
+    int wanted[5],bank;unsigned j;
+    Slot_Wanted(centre,wanted);
+    for(j=0;j<5;j++) {
+        if(wanted[j]<0 || Slot_GetCache(wanted[j]))continue;
+        if(slot_art_active)Slot_CancelArt();
+        bank=Slot_FreeBank(wanted);if(bank<0)break;
+        slot_cache[bank].index=wanted[j];                 /* reserve before the next search */
+        if(Slot_BeginArt((unsigned)bank,wanted[j]))while(slot_art_active)Slot_PumpArt();
+    }
+    slot_art_changed=0;
+}
 static void Slot_FillCache(void){Slot_FillCacheAround((int)Slot_Index());}
+/* While scrolling: start the next missing cart (nearest first) and stream a few rows of it per frame. */
+static void Slot_StreamArt(int centre)
+{
+    int wanted[5],bank;unsigned j;
+    if(!slot_count)return;
+    Slot_Wanted(centre,wanted);
+    if(!slot_art_active)
+        for(j=0;j<5;j++) {
+            if(wanted[j]<0 || Slot_GetCache(wanted[j]))continue;
+            bank=Slot_FreeBank(wanted);if(bank<0)break;
+            Slot_BeginArt((unsigned)bank,wanted[j]);
+            break;
+        }
+    Slot_PumpArt();
+}
 
 /* --- presenting --- */
 static void Slot_Present(void)
@@ -180,6 +277,7 @@ static void Slot_ReadConfig(void)
 {
     if(!Slot_ReadConfigFile(SLOT_CONFIG) && !Slot_ReadConfigFile(SLOT_CONFIG_BAK))slot_settings_defaults(&slot_cfg);
     slot_wrap=slot_cfg.v[SLOT_CFG_WRAP];slot_animations=slot_cfg.v[SLOT_CFG_ANIMATIONS];
+    slot_theme=slot_cfg.v[SLOT_CFG_THEME];slot_skeuo=slot_cfg.v[SLOT_CFG_SKEUO];
     slot_platform=slot_cfg.v[SLOT_CFG_REMEMBER]?slot_cfg.v[SLOT_CFG_PLATFORM]:0;
     if(!slot_cfg.v[SLOT_CFG_REMEMBER]){
         slot_cfg.v[SLOT_CFG_GBA]=slot_cfg.v[SLOT_CFG_GB]=slot_cfg.v[SLOT_CFG_GBC]=0;
@@ -191,6 +289,7 @@ static void Slot_ReadConfig(void)
 static unsigned Slot_SaveConfig(void)
 {
     unsigned length;UINT written=0;FRESULT result;
+    Slot_CancelArt();                    /* the art job shares slot_file */
     slot_cfg.v[SLOT_CFG_PLATFORM]=slot_platform;
     if(!slot_cfg_dirty)return 1;
     length=slot_settings_format(&slot_cfg,slot_cfg_text,sizeof(slot_cfg_text));
@@ -321,18 +420,26 @@ static unsigned Slot_Play(void)
     unsigned frame,start,length,dir_len;
     struct slot_mailbox *mailbox=slot_host->mailbox;
     if(!slot_count)return 0;
-    Slot_ClearNav();
+    Slot_ClearNav();Slot_CancelArt();
+    /* Save first: SD writes can take longer than the two frames the sound buffer covers (slot_audio.h),
+       so nothing slow may run while the clip plays. A failed save only loses the remembered position. */
+    slot_cfg_dirty=1;
+    Slot_SaveConfig();
     if(slot_animations) {
+        unsigned sounded=0;
         slot_partial_motion=1;start=slot_vblanks;
         do {
             unsigned elapsed=slot_vblanks-start+1;
             frame=elapsed>=SLOT_INSERT_FRAMES?256:elapsed*256/SLOT_INSERT_FRAMES;
+            /* the click lands when the cart seats, like slot. advance (6 frames before the end) */
+            if(!sounded && slot_cfg.v[SLOT_CFG_SOUNDS] && elapsed>=SLOT_INSERT_FRAMES-6){Slot_AudioPlay(slot_vblanks);sounded=1;}
             Slot_DrawShelf((int)Slot_Index(),0,(int)frame,0);Slot_Present();
         }while(frame<256);
         slot_partial_motion=0;
-    } else {Slot_DrawShelf((int)Slot_Index(),0,256,0);Slot_Present();}
-    slot_cfg_dirty=1;
-    Slot_SaveConfig();          /* a failed save only loses the remembered position, never the launch */
+    } else {
+        if(slot_cfg.v[SLOT_CFG_SOUNDS])Slot_AudioPlay(slot_vblanks);
+        Slot_DrawShelf((int)Slot_Index(),0,256,0);Slot_Present();
+    }
     /* ADR-0010: the mailbox is SDRAM (16-bit stores only): build the path in IWRAM, then copy it. */
     dir_len=Slot_Append(slot_launch,SLOT_MAX_PATH,0,slot_dirs[slot_platform]);
     dir_len=Slot_Append(slot_launch,SLOT_MAX_PATH,dir_len,"/");
@@ -341,12 +448,14 @@ static unsigned Slot_Play(void)
     slot_launch[length+1]=0;slot_sdram_store(mailbox->launch_path,slot_launch,(length+2)&~1u);
     mailbox->launch_size=slot_shelf_size(&slot_shelf,Slot_Index());
     Slot_FadeBlack();
+    while(Slot_AudioBusy())Slot_WaitFrame();    /* let the clip end; the hardware is stopped before the game starts */
+    Slot_AudioShutdown();
     return 1;
 }
 
 static int Slot_Run(unsigned boot)
 {
-    unsigned nav_index,steps,redraw=1;int pose=0,last_pose=0,last_base=0,last_fill;
+    unsigned nav_index,steps,redraw=1;int pose=0,last_pose=0,last_base=0;
     /* Blank, black, Mode 3: nothing of the stock Mode 4 screen may show through. */
     SLOT_DISPCNT=SLOT_FORCE_BLANK|SLOT_MODE3_BG2;SLOT_BLDCNT=0x00ff;SLOT_BLDY=16;
     if(boot) {
@@ -393,9 +502,10 @@ static int Slot_Run(unsigned boot)
     }
     Slot_Show((int)Slot_Index(),0,1);
     Slot_ResumeNav(slot_count,Slot_Index(),slot_wrap,slot_animations);
-    redraw=0;last_base=(int)Slot_Index();last_fill=last_base;
+    redraw=0;last_base=(int)Slot_Index();
     while(1) {
-        unsigned down;int base,fraction,modal=0;
+        unsigned down,art_changed=slot_art_changed;int base,fraction,modal=0;
+        slot_art_changed=0;
         down=slot_host->get_keypress();
         Slot_SyncTicks();
         Slot_NavSnapshot(&nav_index,&pose,&steps);
@@ -404,20 +514,23 @@ static int Slot_Run(unsigned boot)
             Slot_SaveConfig();Slot_ClearNav();
             return SLOT_STOCK_UI;
         }
-        if(slot_library_state==0 && (down&(SLOT_KEY_L|SLOT_KEY_R))){
+        if((down&SLOT_KEY_START) && (Slot_Held()&SLOT_KEY_B)){       /* hold B, press Start: next theme */
+            slot_theme=(slot_theme+1)%3;slot_cfg.v[SLOT_CFG_THEME]=slot_theme;slot_cfg_dirty=1;
+            slot_footer_dirty=1;redraw=1;
+        } else if(slot_library_state==0 && (down&(SLOT_KEY_L|SLOT_KEY_R))){
             Slot_ChangeShelf(down&SLOT_KEY_L?-1:1);modal=1;
         } else if(down&SLOT_KEY_A){
             if(Slot_Play())return SLOT_LAUNCH;
             slot_partial_motion=0;modal=1;
         }
-        if(modal){Slot_ResumeNav(slot_count,Slot_Index(),slot_wrap,slot_animations);nav_index=Slot_Index();pose=0;redraw=1;last_fill=-1;}
+        if(modal){Slot_ResumeNav(slot_count,Slot_Index(),slot_wrap,slot_animations);nav_index=Slot_Index();pose=0;redraw=1;}
         base=(int)nav_index+(pose>>8);fraction=pose-(pose>>8)*256;
-        if(redraw || pose!=last_pose || base!=last_base) {
+        if(redraw || art_changed || pose!=last_pose || base!=last_base) {
             Slot_Show(base,fraction,redraw);
             redraw=0;last_pose=pose;last_base=base;
         } else Slot_WaitFrame();
         /* Keep the neighbours' labelled carts ready; cheap when nothing changed. */
-        if(slot_count){int fill=base+(fraction>=128);if(fill!=last_fill){Slot_FillCacheAround(fill);last_fill=fill;}}
+        if(slot_count)Slot_StreamArt(base+(fraction>=128));
     }
 }
 
@@ -429,10 +542,14 @@ int slot_main(const struct slot_host_api *api)
     slot_host=api;
     slot_frame=(uint16_t*)scratch;
     slot_cache_base=(uint16_t*)(scratch+SLOT_FRAME_BYTES);
-    if(!slot_shelf_init(&slot_shelf,scratch+SLOT_FRAME_BYTES+SLOT_CACHE_BYTES,
-                        api->scratch_size-SLOT_FRAME_BYTES-SLOT_CACHE_BYTES))return SLOT_STOCK_UI;
+    slot_spans_base=(SlotOpaqueSpans*)(scratch+SLOT_FRAME_BYTES+SLOT_CACHE_BYTES);
+    if(!slot_pack_valid())return SLOT_STOCK_UI;          /* asset pack missing or damaged: stock UI */
+    if(!slot_shelf_init(&slot_shelf,scratch+SLOT_FRAME_BYTES+SLOT_CACHE_BYTES+SLOT_SPANS_BYTES,
+                        api->scratch_size-SLOT_FRAME_BYTES-SLOT_CACHE_BYTES-SLOT_SPANS_BYTES))return SLOT_STOCK_UI;
     Slot_TimingInit(api);
     result=Slot_Run(api->mailbox->entry_reason==SLOT_ENTER_BOOT);
+    Slot_CancelArt();            /* no file left open */
+    Slot_AudioShutdown();        /* timers, DMA1 and FIFO stopped on every return (task 6.4) */
     Slot_FadeReset();            /* the firmware rewrites the rest of the video state */
     return result;
 }

@@ -41,10 +41,12 @@ static void Slot_TimingInit(const struct slot_host_api *api) {
 }
 /* Wait for the next VBlank edge, then run the ticks for it. */
 static const struct slot_host_api *slot_host;
+static void Slot_AudioFrame(unsigned vblank_now);     /* slot_audio.h, defined after this header */
 static void Slot_WaitFrame(void) {
     unsigned f=*slot_frame_counter;
     do slot_host->wait_for_vblank(); while(*slot_frame_counter==f);
     Slot_SyncTicks();
+    Slot_AudioFrame(slot_vblanks);
 }
 #define SLOT_INSERT_FRAMES 27
 #define SLOT_EJECT_FRAMES SLOT_INSERT_FRAMES

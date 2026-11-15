@@ -3,6 +3,11 @@
  * Source: vendor/slot-advance/common/slot_render.h (slot. advance v1.2.4, commit a2a2fe9).
  * Licence: GPL-3.0-or-later (see NOTICE.md).
  *
+ * Changes for M2 (tasks 6.1-6.3): the art comes from the SDRAM asset pack (slot_art.h); Wood, Dark and
+ * Light themes plus the flat ("Skeuomorphic=0") variants are back (slot_theme / slot_skeuo); the
+ * opaque-span tables are per cache slot, computed from each loaded cart image (a Cart Studio cart
+ * can have any outline) and kept in SDRAM, written with 16-bit stores (ADR-0010).
+ *
  * Changes for M1 (design D7):
  *  - libgba (dmaCopy, IWRAM_CODE/ARM_CODE, EWRAM_BSS) replaced by gba_compat.h; hot loops are
  *    SLOT_FAST = ARM code in the payload's .iwram section (ADR-0005, <= 8 KiB).
@@ -21,6 +26,7 @@
 #include <string.h>
 #include "slot/gba_compat.h"
 #include "slot/slot_art.h"
+#include "slot/slot_sdram.h"
 #include "slot_motion.h"
 #define SLOT_FAST __attribute__((section(".iwram_code"),target("arm"),long_call,noinline,optimize("O2")))
 #define SLOT_COPY(dst,src,n) Slot_Copy((dst),(src),(n))
@@ -35,42 +41,55 @@
 extern void Slot_BlitOpaqueRow(const unsigned char *row,uint16_t *destination,const int *offsets,int count);
 static uint16_t *slot_frame;
 static unsigned slot_platform;
+static unsigned slot_theme;               /* 0 wood, 1 dark, 2 light (SETTINGS.TXT "Theme") */
+static unsigned slot_skeuo=1;             /* 1 skeuomorphic carts/bands, 0 flat (SETTINGS.TXT "Skeuomorphic") */
 static int slot_redraw_top=0,slot_redraw_bottom=160;
 static unsigned slot_partial_motion=0;
 typedef struct {unsigned char left[112],right[112];} SlotOpaqueSpans;
 typedef struct {const uint16_t *pixels;const SlotOpaqueSpans *spans;} SlotOpaque;
 static SlotOpaque slot_opaque[SLOT_CACHE_SLOTS];
-static SlotOpaqueSpans slot_spans[3];
-static unsigned slot_spans_ready;
+static SlotOpaqueSpans *slot_spans_base;       /* SLOT_CACHE_SLOTS tables in the SDRAM scratch (16-bit stores only) */
+static uint16_t slot_row[120];                 /* IWRAM row buffer: art decode and span scans */
 typedef struct {unsigned char count;unsigned char left[4],right[4];} SlotCoverage;
 static SlotCoverage slot_coverage_banks[2][160];
 static SlotCoverage *slot_covered=slot_coverage_banks[0],*slot_next_covered=slot_coverage_banks[1];
 static unsigned slot_layout_only,slot_difference,slot_coverage_safe,slot_old_coverage_safe;
 static const char *const slot_platform_names[3] = {"GBA", "GB", "GBC"};
-static const uint16_t *const slot_fallbacks[3] = {slot_fallback_gba,slot_fallback_gb,slot_fallback_gbc};
-static const uint16_t *Slot_Fallback(unsigned platform) {return slot_fallbacks[platform];}
+static const uint16_t *Slot_Fallback(unsigned platform) {return slot_pack_u16((slot_skeuo?SLOT_PK_MOULD:SLOT_PK_FLAT)+platform);}
+#define slot_font ((const unsigned char (*)[12])slot_pack_item(SLOT_PK_FONT))
 static const unsigned slot_widths[3] = {120,104,104};
 static const unsigned slot_heights[3] = {71,112,112};
-#define SLOT_INK SLOT_RGB(244,239,226)
-#define SLOT_WARN SLOT_RGB(255,211,143)
-/* Opaque column span per row of a plain silhouette; 255 = the row has holes inside the span. */
-static void Slot_ComputeSpans(unsigned platform)
+static uint16_t Slot_Ink(void){return slot_theme==2?SLOT_RGB(40,40,48):SLOT_RGB(244,239,226);}
+static uint16_t Slot_Warn(void){return slot_theme==2?SLOT_RGB(150,60,0):SLOT_RGB(255,211,143);}
+static uint16_t Slot_GroundColour(void){return slot_theme==1?0:SLOT_RGB(235,235,231);}
+#define SLOT_INK Slot_Ink()
+#define SLOT_WARN Slot_Warn()
+/* Opaque column span of one image row: left/right edge; left=255 when the row has holes inside. */
+static void Slot_SpanRow(const uint16_t *p,unsigned w,unsigned char *left,unsigned char *right)
 {
-    const uint16_t *p0=Slot_Fallback(platform);unsigned w=slot_widths[platform],h=slot_heights[platform],x,y;
-    SlotOpaqueSpans *o=&slot_spans[platform];
-    for(y=0;y<h;y++) {
-        const uint16_t *p=p0+y*w;unsigned l=0,r=w;
-        while(l<r && p[l]==SLOT_KEY)l++;
-        while(r>l && p[r-1]==SLOT_KEY)r--;
-        o->left[y]=l;o->right[y]=r;
-        for(x=l;x<r;x++)if(p[x]==SLOT_KEY){o->left[y]=255;break;}
-    }
-    slot_spans_ready|=1u<<platform;
+    unsigned l=0,r=w,x;
+    while(l<r && p[l]==SLOT_KEY)l++;
+    while(r>l && p[r-1]==SLOT_KEY)r--;
+    *left=(unsigned char)l;*right=(unsigned char)r;
+    for(x=l;x<r;x++)if(p[x]==SLOT_KEY){*left=255;break;}
 }
-static void Slot_RegisterOpaque(unsigned bank,const uint16_t *pixels,unsigned platform)
+/* Store one row's span bytes into the bank's SDRAM table (halfword read-modify-write, ADR-0010). */
+static void Slot_SpanStore(unsigned bank,unsigned y,const uint16_t *row,unsigned w)
 {
-    if(!(slot_spans_ready&(1u<<platform)))Slot_ComputeSpans(platform);
-    slot_opaque[bank].pixels=pixels;slot_opaque[bank].spans=&slot_spans[platform];
+    unsigned char l,r;
+    Slot_SpanRow(row,w,&l,&r);
+    slot_sdram_store(&slot_spans_base[bank].left[y],&l,1);
+    slot_sdram_store(&slot_spans_base[bank].right[y],&r,1);
+}
+static void Slot_RegisterOpaque(unsigned bank,const uint16_t *pixels)
+{
+    slot_opaque[bank].pixels=pixels;slot_opaque[bank].spans=&slot_spans_base[bank];
+}
+/* Spans from the finished image in SDRAM (the plain moulds): row by row through the IWRAM buffer. */
+static void Slot_SpansFromImage(unsigned bank,const uint16_t *pixels,unsigned w,unsigned h)
+{
+    unsigned y;
+    for(y=0;y<h;y++){SLOT_COPY(slot_row,pixels+y*w,w*2);Slot_SpanStore(bank,y,slot_row,w);}
 }
 static const SlotOpaque *Slot_OpaqueInfo(const uint16_t *pixels)
 {
@@ -82,14 +101,20 @@ static void SLOT_FAST Slot_Rect(int x,int y,int w,int h,uint16_t colour)
     int xx,yy;
     for(yy=y1;yy<y2;yy++) for(xx=x1;xx<x2;xx++) slot_frame[yy*240+xx]=colour;
 }
+static unsigned slot_auto_ink;     /* Light theme footer: the band has a dark cart slot; flip dark glyphs to light over it */
 static void SLOT_FAST Slot_Text(const char *text,int x,int y,uint16_t colour)
 {
     int row,col;
     unsigned char c;
+    const unsigned char (*font)[12]=slot_font;
     while((c=(unsigned char)*text++)) {
         if(c<32 || c>126) c='?';
         for(row=0;row<12;row++) for(col=0;col<8;col++)
-            if((slot_font[c][row]&(128>>col)) && (unsigned)(x+col)<240 && (unsigned)(y+row)<160) slot_frame[(y+row)*240+x+col]=colour;
+            if((font[c][row]&(128>>col)) && (unsigned)(x+col)<240 && (unsigned)(y+row)<160) {
+                uint16_t c2=colour,b=slot_frame[(y+row)*240+x+col];
+                if(slot_auto_ink && ((b&31)+((b>>5)&31)+((b>>10)&31))<40)c2=SLOT_RGB(244,239,226);
+                slot_frame[(y+row)*240+x+col]=c2;
+            }
         x+=6;
         if(x>=240) break;
     }
@@ -146,21 +171,32 @@ static void SLOT_FAST Slot_Image(const uint16_t *src,int sw,int sh,int x,int y,i
         }
     }
 }
-static void SLOT_FAST Slot_Band(const uint16_t *src,int y)
+static void SLOT_FAST Slot_Band(unsigned id,int y)
 {
-    int xx,yy;
+    int xx,yy;const uint16_t *src=slot_pack_u16(id);
     for(yy=0;yy<19;yy++) for(xx=0;xx<240;xx++) {
         uint16_t c=src[yy*240+xx];
         if(c!=SLOT_KEY && (unsigned)(y+yy)<160) slot_frame[(y+yy)*240+xx]=c;
     }
 }
+/* Pack id of the back (0) / front (1) band for the current theme (Wood uses the dark bands). */
+static unsigned Slot_BandId(unsigned front){return (slot_skeuo?SLOT_PK_BACK_DARK:SLOT_PK_BACK_FLAT_DARK)+(slot_theme==2?2u:0u)+front;}
+/* Paint the empty "desk" (wood picture, or the flat theme colour) over x..x+w, rows y..y+h. */
+static void Slot_PaintGround(int x,int y,int w,int h)
+{
+    if(slot_theme==0) {
+        const uint16_t *bg=slot_pack_u16(SLOT_PK_BACKGROUND);int row;
+        if(w==240)SLOT_COPY(slot_frame+y*240,bg+y*240,h*240*2);
+        else for(row=y;row<y+h;row++)SLOT_COPY(slot_frame+row*240+x,bg+row*240+x,w*2);
+    } else Slot_Rect(x,y,w,h,Slot_GroundColour());
+}
 static void Slot_BackgroundRange(int top,int bottom)
 {
     slot_redraw_top=top;slot_redraw_bottom=bottom;
-    SLOT_COPY(slot_frame+top*240,slot_background+top*240,(bottom-top)*240*2);
-    if(bottom>SLOT_BAND_Y) Slot_Band(slot_back_dark,SLOT_BAND_Y);
+    Slot_PaintGround(0,top,240,bottom-top);
+    if(bottom>SLOT_BAND_Y) Slot_Band(Slot_BandId(0),SLOT_BAND_Y);
 }
-static void Slot_Front(void) {Slot_Band(slot_front_dark,SLOT_BAND_Y);}
+static void Slot_Front(void) {Slot_Band(Slot_BandId(1),SLOT_BAND_Y);}
 static void Slot_Background(void) { Slot_BackgroundRange(0,160); }
 static inline void Slot_RecordSpan(int y,int left,int right)
 {
@@ -209,7 +245,7 @@ static void SLOT_FAST Slot_BeginShelfPaint(void)
                 if(j<next->count && next->left[j]<=cursor)cursor=next->right[j]<right?next->right[j]:right;
                 else {
                     if(j<next->count && next->left[j]<gap)gap=next->left[j];
-                    SLOT_COPY(slot_frame+y*240+cursor,slot_background+y*240+cursor,(gap-cursor)*2);
+                    Slot_PaintGround(cursor,y,gap-cursor,1);
                     cursor=gap;
                 }
             }
@@ -217,20 +253,22 @@ static void SLOT_FAST Slot_BeginShelfPaint(void)
     }
     /* The title row is not part of the cart coverage: repaint it from the background. */
     if(slot_redraw_bottom>SLOT_TITLE_TOP)
-        SLOT_COPY(slot_frame+SLOT_TITLE_TOP*240,slot_background+SLOT_TITLE_TOP*240,(SLOT_BAND_Y-SLOT_TITLE_TOP)*240*2);
+        Slot_PaintGround(0,SLOT_TITLE_TOP,240,SLOT_BAND_Y-SLOT_TITLE_TOP);
 }
 static void SLOT_FAST Slot_EndShelf(void){SlotCoverage *previous=slot_covered;slot_covered=slot_next_covered;slot_next_covered=previous;slot_old_coverage_safe=slot_coverage_safe;}
 /* Footer (y=141..160): left = hint or notice, right = "<shelf> n/total". */
 static void Slot_FooterText(const char *left,uint16_t left_colour,const char *right)
 {
+    slot_auto_ink=slot_theme==2;
     if(left && *left)Slot_Text(left,6,145,left_colour);
     if(right && *right)Slot_Text(right,234-(int)Slot_TextWidth(right),145,SLOT_INK);
+    slot_auto_ink=0;
 }
 /* Repaint the whole footer (only valid when no cart overlaps it, i.e. not during the insert). */
 static void Slot_Footer(const char *left,uint16_t left_colour,const char *right)
 {
-    SLOT_COPY(slot_frame+SLOT_BAND_Y*240,slot_background+SLOT_BAND_Y*240,(160-SLOT_BAND_Y)*240*2);
-    Slot_Band(slot_back_dark,SLOT_BAND_Y);Slot_Front();
+    Slot_PaintGround(0,SLOT_BAND_Y,240,160-SLOT_BAND_Y);
+    Slot_Band(Slot_BandId(0),SLOT_BAND_Y);Slot_Front();
     Slot_FooterText(left,left_colour,right);
 }
 /* Plain full-screen message (empty shelf, errors). `hint` goes in the footer. */
@@ -272,10 +310,10 @@ static void Slot_CartQ8(const uint16_t *pixels,unsigned platform,int centre,int 
     /* A small shadow anchors the selected cartridge to the desk. */
     if(slot_layout_only) {
         Slot_RecordCart(pixels,slot_widths[platform],slot_heights[platform],centre-w/2,y,w,h);
-        if(scale>=95*256 && !drop){Slot_RecordSpan(y+h+2,centre-w/2+5,centre-w/2+w-5);Slot_RecordSpan(y+h+3,centre-w/2+5,centre-w/2+w-5);}
+        if(slot_skeuo && scale>=95*256 && !drop){Slot_RecordSpan(y+h+2,centre-w/2+5,centre-w/2+w-5);Slot_RecordSpan(y+h+3,centre-w/2+5,centre-w/2+w-5);}
         return;
     }
-    if(scale>=95*256 && drop==0) Slot_Rect(centre-w/2+5,y+h+2,w-10,2,SLOT_RGB(24,21,21));
+    if(slot_skeuo && scale>=95*256 && drop==0) Slot_Rect(centre-w/2+5,y+h+2,w-10,2,slot_theme==2?SLOT_RGB(200,200,196):slot_theme==0?SLOT_RGB(24,21,21):0);
     Slot_Image(pixels,slot_widths[platform],slot_heights[platform],centre-w/2,y,w,h);
 }
 #endif

@@ -23,13 +23,15 @@ static void Slot_FadeIn(void)
     SLOT_BLDCNT=0;SLOT_BLDY=0;
 }
 static void Slot_FadeReset(void){SLOT_BLDCNT=0;SLOT_BLDY=0;}
-/* Unpack the splash straight into VRAM (Mode 3). */
+/* Unpack the splash (from the asset pack) straight into VRAM (Mode 3). */
 static void Slot_DrawSplash(void)
 {
     volatile uint16_t *out=SLOT_VRAM;unsigned i,n;
-    for(i=0;i+1<slot_splash_rle_len;i+=2) {
-        uint16_t pixel=slot_splash_rle[i+1];
-        for(n=slot_splash_rle[i];n;n--)*out++=pixel;
+    const uint16_t *rle=slot_pack_u16(SLOT_PK_SPLASH);
+    unsigned len=SLOT_PACK->item[SLOT_PK_SPLASH].size/2;
+    for(i=0;i+1<len;i+=2) {
+        uint16_t pixel=rle[i+1];
+        for(n=rle[i];n;n--)*out++=pixel;
     }
 }
 #endif
