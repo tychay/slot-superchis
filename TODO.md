@@ -16,6 +16,12 @@ Not part of the `add-slot-carousel` change (M0 to M2). Source: `openspec/changes
 - [ ] Translations
 - [ ] Other SuperCard boards
 - [ ] Flashed `.fw` install (documented only as untested, help wanted)
+- [ ] **Before asking anyone to flash:** boot bypass. Holding Select (TBD) at power-on skips the
+      carousel and opens the stock UI, so a carousel that hangs at boot (like the first M1
+      hardware run) is still recoverable without a DS. Does not cover a broken firmware core or a
+      bad flash; those need a DS/DS Lite + Slot-1 flashcart + superfw-nds-flasher-tool. README
+      flash instructions must say: back up the stock flash with that tool first, and list the
+      recovery steps.
 - [ ] Skip SuperFW's GBA load popup ("Load GBA game ROM") when launching from the carousel:
       start with the popup's defaults (save, patches, in-game menu) so A on a GBA cart boots
       directly, like GB/GBC. The popup stays reachable through the core picker (next item).
