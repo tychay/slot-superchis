@@ -32,3 +32,6 @@ Not part of the `add-slot-carousel` change (M0 to M2). Source: `openspec/changes
       route once GBA launches directly. Later entries could pick the GB core or patch options.
 - [ ] Optional: persist shelf/position on shelf switch, not only on launch (power-cycle without
       launching currently restores the last launched cart). Weigh against extra SD writes.
+- [ ] **Before going public:** `tests/fixtures/art/` and the preview ROM contain real Cart Studio
+      label art (commercial box art) from the author's card. Replace with fictional labels
+      (vendor `tools/make_examples.py` style) and purge them from git history before pushing.
