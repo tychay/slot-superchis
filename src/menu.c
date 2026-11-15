@@ -1972,8 +1972,7 @@ void render_info(volatile uint8_t *frame) {
     draw_central_text("by davidgf", frame, 120, 70);
     npf_snprintf(tmp, sizeof(tmp), "Version %lu.%lu (%08lx)", vmaj, vmin, gitver);
     draw_central_text(tmp, frame, 120, 95);
-    draw_central_text(FW_FLAVOUR " variant", frame, 120, 114);
-    draw_central_text(SLOT_VERSION_SUFFIX, frame, 120, 133);   // slot:
+    draw_central_text(FW_FLAVOUR " variant " SLOT_VERSION_SUFFIX, frame, 120, 114);   // slot:
     break;
   case 1:
     draw_central_text("Flash info", frame, 120, 70);
