@@ -276,3 +276,33 @@ Files from `vendor/slot-advance/common/` are copied into `src/slot/`.
 - Is the slot. advance on-card `/SYSTEM/SLOT` format stable across v1.2.x? (M2 task: pin and test
   with `convert_labels.py` output.)
 - No ADRs exist yet; nothing to supersede.
+
+## M1 implementation notes (sections 4-5)
+
+- **ABI v2.** `struct slot_host_api` gained `f_unlink` (slot. advance's safe settings write is
+  tmp -> unlink bak -> rename); `struct slot_mailbox` gained `entry_reason` (`SLOT_ENTER_BOOT` shows
+  the splash, `SLOT_ENTER_RESUME` is a re-entry). `SLOT_ABI_VERSION` is 2 on both sides.
+- **No IRQ in the payload.** slot. advance ticks its navigation spring from its own VBlank IRQ.
+  The payload may not touch IE/IME, so `Slot_SyncTicks()` replays every VBlank since the last call
+  from the host's IRQ-driven `frame_count` (same result: the tick depends only on frame number and
+  key state). Frame sync is `wait_for_vblank()` until `frame_count` changes.
+- **Re-entry state.** The payload's statics are re-zeroed on every entry, so the selection survives
+  a Select round trip or a dismissed load popup through `SETTINGS.TXT` (written on Select and before
+  launch), not through the mailbox.
+- **Assets (M1).** No pack yet (6.1). `tools/slot_assets_gen.py` extracts the wood background, the
+  dark front/back bands, the three plain carts, the font and the splash (RLE, 2.9 KB) from the pinned
+  submodule into `src/slot/slot_art_gen.c` at build time; they are linked into the payload's SDRAM
+  image (about 168 KB of the 256 KiB). The fast-bank copy machinery of `slot_fast_cache.h` is
+  dropped: the sources already sit in SDRAM.
+- **Scan memory.** One shelf is scanned at a time (rescan on shelf change, like slot. advance):
+  `SLOT_SHELF_MAX` = 2048 entries, names in a 256 KiB pool; scanning stops at either limit and flags
+  the shelf truncated. `_Static_assert`: frame + cache + 3 shelves fit the window's scratch.
+- **Preview ROM (D6 refinement).** An emulator's ROM space is read-only, so the real payload
+  (statics, back buffer and shelf in the 0x08 SDRAM window) cannot run there byte-for-byte.
+  `slot-preview.gba` links the same carousel sources against `preview_host.c` into an ordinary ROM
+  (`ldscripts/slot_preview.ld`) with statics and scratch in EWRAM. The entry path (`slot_entry`
+  copying IWRAM code, `.data`, zeroing `.bss`) is the real one.
+- **Performance is unmeasured.** The back buffer is in SDRAM (EWRAM is reserved, ADR-0005), so every
+  pixel write is a cartridge-bus write. Dirty-band redraw and the IWRAM pixel loops are in; the M1
+  hardware checkpoint decides whether more is needed (banded rendering through an IWRAM tile, WAITCNT).
+

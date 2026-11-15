@@ -19,7 +19,9 @@ Target hardware: SuperChis Prime GBA flashcart only (`BOARD=chis`). English only
 - Canonical: `./build.sh` (runs `make BOARD=chis COMPRESSION_RATIO=10` in docker/Dockerfile,
   mirroring upstream CI). Docker Desktop must be running. Output: `superfw.gba`.
 - Clean: `./build.sh clean`.
-- Host unit tests (upstream): `cd tests && make` (run inside the container too).
+- Host unit tests (upstream): `cd tests && make` (needs lcov/OpenSSL, not in the image).
+- Slot unit tests (scan/sort/settings): `./build.sh slot-tests`. Emulator preview ROM: `./build.sh preview`
+  then `tools/preview_shots.sh slot-preview.gba <sequence>` (PNGs in `build/shots/`).
 
 ## Test card
 - Mirror: `/Volumes/16TB_EXT/emulation/flashcarts/SUPERCHIS/` (edit here first).
