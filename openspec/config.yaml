@@ -1,0 +1,28 @@
+schema: spec-driven-with-adr
+
+context: |
+  slot. superchis — GPL-3.0 continuation fork of SuperFW (davidgfnet/superfw, C, GBA firmware)
+  replacing the file browser with the slot. cartridge carousel ported from FrankieT19/slot-advance
+  (pinned submodule at vendor/slot-advance, read-only reference).
+  Hardware: SuperChis Prime only (BOARD=chis). English only.
+  Toolchain: arm-none-eabi-gcc via ./build.sh (Docker, mirrors upstream Ubuntu CI). No devkitPro/libgba.
+  Memory: stock firmware uses ~91% of EWRAM (251 KB); IWRAM 32 KB; menu state lives in SDRAM
+  at 0x08000000 (up to 14.5 MB). Large buffers MUST go in SDRAM.
+  Delivery: superfw.gba chain-loaded from SD by stock flashed SuperFW. Never flashed by us.
+  Verification split: agent = build + host unit tests + mGBA preview ROM screenshots;
+  user = hardware checklist per milestone.
+
+rules:
+  proposal:
+    - State which milestone (M0/M1/M2) the change delivers
+    - List deferred features explicitly; they go to TODO.md
+  specs:
+    - Every requirement needs a scenario verifiable either by agent (build/test/screenshot) or by the user's hardware checklist; label which
+  design:
+    - Keep diffs to upstream SuperFW files minimal; new code under src/slot/
+    - Account for EWRAM budget explicitly for any new static buffer
+  adr:
+    - Only for decisions meeting all four ADR criteria
+  tasks:
+    - Each task ends with a verifiable check (command, screenshot, or hardware-checklist item)
+    - README.md update is a task whenever user-visible behavior or install steps change

@@ -1,0 +1,3 @@
+[submodule "vendor/slot-advance"]
+	path = vendor/slot-advance
+	url = https://github.com/FrankieT19/slot-advance
