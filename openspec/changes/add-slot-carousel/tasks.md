@@ -101,7 +101,7 @@
 
 - [x] 6.7 Copy the build as `slot-superchis-M2.gba`, remove the M1 file, sync to the card if mounted. Check: on card. (done 2026-11-15: M2 + rebuilt DIAG on card, M1 removed, SYSTEM/SLOT art synced)
 - [x] 6.8 **⛔ HARDWARE CHECKPOINT (M2)**: user runs Cart Studio on the card, relaunches, and verifies labels and shells; holds Right across an art-filled shelf (no long freezes); cycles themes; insert sound plays and game audio is clean afterwards. STOP until reported. — PASSED 2026-11-15 (Info "slot.M2", eb6bcc7b): labelled carts; slightly longer "Reading shelf..." on boot/switch (acceptable); labels keep up on GBA, brief white carts on fast GB/GBC scrolling (acceptable, TODO prefetch); B+Start themes cycle; insert sound plays; Advance Wars audio clean after it, save intact; Tetris launches with sound; B in load popup and Select round trip OK. Theme/position were only saved on launch -> 6.9. Select on Info confirmed working (an earlier miss was Start pressed by mistake).
-- [x] 6.9 Save shelf, position and theme after ~2 s without input (one SD write per pause; never while navigating or streaming art; failed save retried only after the next pause). Check: build, slot-tests, preview run past the save point. Hardware: confirm theme + position survive a power cycle without launching.
+- [x] 6.9 Save shelf, position and theme after ~2 s without input (one SD write per pause; never while navigating or streaming art; failed save retried only after the next pause). Check: build, slot-tests, preview run past the save point. Hardware: confirm theme + position survive a power cycle without launching. — PASSED 2026-11-15: switched to GBC + Light theme, waited, power-cycled; both restored.
 
 ## 7. Wrap-up
 
