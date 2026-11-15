@@ -18,6 +18,11 @@ Not part of the `add-slot-carousel` change (M0 to M2). Source: `openspec/changes
 - [ ] Flashed `.fw` install (documented only as untested, help wanted)
 - [ ] Skip SuperFW's GBA load popup ("Load GBA game ROM") when launching from the carousel:
       start with the popup's defaults (save, patches, in-game menu) so A on a GBA cart boots
-      directly, like GB/GBC. Keep a way to reach the popup (e.g. hold a key while pressing A).
+      directly, like GB/GBC. The popup stays reachable through the core picker (next item).
+- [ ] Core picker, like slot.'s Start-on-a-cart menu (https://slot-cfw.fyi/tour/#core-picker):
+      Start on the selected cart opens a picker; one entry (Select) opens SuperFW's stock load
+      screen for that file, with its ROM info. Uses: diagnostics for GB/GBC (which launch
+      directly today, so their info screen is unreachable from the carousel) and the fallback
+      route once GBA launches directly. Later entries could pick the GB core or patch options.
 - [ ] Optional: persist shelf/position on shelf switch, not only on launch (power-cycle without
       launching currently restores the last launched cart). Weigh against extra SD writes.
