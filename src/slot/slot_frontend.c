@@ -163,7 +163,7 @@ static void Slot_FillCache(void){Slot_FillCacheAround((int)Slot_Index());}
 static void Slot_Present(void)
 {
     Slot_WaitFrame();
-    Slot_DmaCopy((void*)(SLOT_VRAM+slot_redraw_top*240),slot_frame+slot_redraw_top*240,(unsigned)(slot_redraw_bottom-slot_redraw_top)*240*2);
+    Slot_Copy((void*)(SLOT_VRAM+slot_redraw_top*240),slot_frame+slot_redraw_top*240,(unsigned)(slot_redraw_bottom-slot_redraw_top)*240*2);
 }
 
 /* --- settings (SETTINGS.TXT) --- */

@@ -36,14 +36,9 @@
 #define SLOT_KEY_R       0x0100u
 #define SLOT_KEY_L       0x0200u
 
-/* Immediate 16-bit DMA3 copy (what libgba's dmaCopy does). Count <= 0xFFFF halfwords; src/dst
- * must be halfword aligned; the CPU is halted until the transfer finishes. */
-static inline void Slot_DmaCopy(void *dst, const void *src, unsigned bytes)
-{
-    if (!bytes) return;
-    SLOT_IO32(REG_DMA3SAD) = (uint32_t)(uintptr_t)src;
-    SLOT_IO32(REG_DMA3DAD) = (uint32_t)(uintptr_t)dst;
-    SLOT_IO32(REG_DMA3CNT_L) = (bytes >> 1) | (0x8000u << 16);   /* enable, 16-bit, immediate, inc/inc */
-}
+/* Bulk copy (src/slot/slot_blit.s, IWRAM ARM). Not DMA: DMA3 from SuperCard SDRAM corrupts data
+ * or hangs on hardware. bytes even, src/dst halfword aligned; 16/32-bit stores only (ADR-0010). */
+void Slot_CopyMem(void *dst, const void *src, unsigned bytes) __attribute__((long_call));
+#define Slot_Copy(dst, src, bytes) Slot_CopyMem((dst), (src), (bytes))
 
 #endif

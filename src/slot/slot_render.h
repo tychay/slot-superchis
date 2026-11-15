@@ -23,7 +23,7 @@
 #include "slot/slot_art.h"
 #include "slot_motion.h"
 #define SLOT_FAST __attribute__((section(".iwram_code"),target("arm"),long_call,noinline,optimize("O2")))
-#define SLOT_COPY(dst,src,n) Slot_DmaCopy((dst),(src),(n))
+#define SLOT_COPY(dst,src,n) Slot_Copy((dst),(src),(n))
 #define SLOT_RGB(r,g,b) ((uint16_t)(((r)>>3)|(((g)>>3)<<5)|(((b)>>3)<<10)))
 #define SLOT_KEY 0x8000
 #define SLOT_W 240

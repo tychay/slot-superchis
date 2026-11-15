@@ -12,6 +12,9 @@ Target hardware: SuperChis Prime GBA flashcart only (`BOARD=chis`). English only
 - Keep upstream SuperFW files' diffs minimal and surgical; new code goes in `src/slot/`.
   `git diff upstream/master -- src/ Makefile` must stay reviewable.
 - EWRAM is ~91% used by stock SuperFW (~22 KB free). Large buffers go in SDRAM, never EWRAM.
+- SuperCard SDRAM (hardware-verified 2026-11-15, SLOT_DIAG run): no byte stores (`strb` corrupts the
+  neighbour; ADR-0010) and no DMA with an SDRAM source (wrong data / hang). Bulk copies use
+  `Slot_Copy` (IWRAM ARM ldm/stm). mGBA cannot catch either; use `make SLOT_DIAG=1` on hardware.
 - Keep README.md install/test steps current with every user-visible change.
 - Respect ADRs in `adr/` (immutable once accepted; supersede, don't edit).
 

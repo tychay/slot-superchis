@@ -78,6 +78,7 @@
   | memset | only caller Slot_DrawShelf, destination `sp`-relative stack arrays | OK |
   | memmove | no callers in the final link | OK |
   | put_str | `slot_cfg_text` (via slot_settings_format) | OK |
+- [x] 5.3c **Hardware fix: no DMA from SDRAM**: after 5.3b the payload still went white after the splash. `make SLOT_DIAG=1` on hardware: 32/16-bit SDRAM stores pass, 8-bit store fails (confirms ADR-0010), DMA3 SDRAM->SDRAM 128 B returns wrong data, DMA3 full-screen SDRAM->SDRAM hangs (the first thing `Slot_Background` does). Fix: `Slot_CopyMem` (IWRAM ARM ldm/stm, 16/32-bit stores) replaces `Slot_DmaCopy` for every copy (SLOT_COPY, Slot_Present, diag). Check: clean build, slot-tests pass, preview boot/navigate/shelf-switch screenshots correct; no DMA register writes left in src/slot/.
 - [ ] 5.4 **⛔ HARDWARE CHECKPOINT (M1)**: user verifies shelves and order; smooth navigation (note any stutter); Advance Wars launch, save, relaunch with the save intact; Tetris and Link's Awakening DX launch; B in the load popup returns to the carousel; Select → stock Settings/Info work → Select (on Settings/UI/Tools/Info) → back to the carousel; position restored after power cycle; after an in-game exit, stock Recent tab shows the fork `.gba` first (task 4.9); stock file browser still lists files correctly (SDRAM sanity). STOP until reported. If stutter is reported, fix it (design Risks: IWRAM blitter, WAITCNT, fewer motion frames) before M2.
 
 ## 6. M2 — Art, themes, sound

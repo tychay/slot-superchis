@@ -58,21 +58,21 @@ static void Slot_DiagSelfTest(const uint16_t *rodata_src) {
   end[0] = 0xDEADBEEFu;
   Slot_DiagResult(3, end[0] == 0xDEADBEEFu);
 
-  /* 4: DMA3 16-bit, payload rodata (SDRAM) -> scratch (SDRAM), 64 halfwords */
+  /* 4: CPU copy (Slot_CopyMem), payload rodata (SDRAM) -> scratch (SDRAM), 64 halfwords */
   Slot_DiagBlock(1, 4, DIAG_GREY);
-  Slot_DmaCopy((void *)SLOT_SCRATCH_ADDR, rodata_src, 128);
+  Slot_Copy((void *)SLOT_SCRATCH_ADDR, rodata_src, 128);
   ok = 1;
   for (i = 0; i < 64; i++) if (h[i] != rodata_src[i]) ok = 0;
   Slot_DiagResult(4, ok);
 
-  /* 5: DMA3 16-bit, full-screen-sized SDRAM -> SDRAM (like Slot_Background) */
+  /* 5: CPU copy, full-screen-sized SDRAM -> SDRAM (like Slot_Background) */
   Slot_DiagBlock(1, 5, DIAG_GREY);
-  Slot_DmaCopy((void *)SLOT_SCRATCH_ADDR, rodata_src, 240 * 160 * 2);
+  Slot_Copy((void *)SLOT_SCRATCH_ADDR, rodata_src, 240 * 160 * 2);
   Slot_DiagResult(5, h[100] == rodata_src[100] && h[38000] == rodata_src[38000]);
 
-  /* 6: DMA3 16-bit, scratch (SDRAM) -> VRAM rows 120..135 (shows background pixels) */
+  /* 6: CPU copy, scratch (SDRAM) -> VRAM rows 120..135 (shows background pixels) */
   Slot_DiagBlock(1, 6, DIAG_GREY);
-  Slot_DmaCopy((void *)(0x06000000 + 120 * 240 * 2), (const void *)SLOT_SCRATCH_ADDR, 16 * 240 * 2);
+  Slot_Copy((void *)(0x06000000 + 120 * 240 * 2), (const void *)SLOT_SCRATCH_ADDR, 16 * 240 * 2);
   Slot_DiagResult(6, ((volatile uint16_t *)0x06000000)[120 * 240 + 5] == h[5]);
 
   /* 7: CPU loop write of 76.8 KB into scratch (like a full back-buffer redraw) */
