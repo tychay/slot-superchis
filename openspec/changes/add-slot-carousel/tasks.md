@@ -20,8 +20,8 @@
 
 ## 2. M1 — Preview harness spike
 
-- [ ] 2.1 Spike: find a way to run a GBA ROM in Homebrew mGBA 0.10.5 on macOS with scripted input and PNG screenshots, without user interaction (Lua `--script`, SDL frontend + movie file, or the `mgba` Python bindings). Check: a script captures a PNG of upstream `superfw.gba` at frame 120 into `build/shots/`.
-- [ ] 2.2 Write `tools/preview_shots.sh <rom> <sequence>` using the spike result. Check: it produces one PNG per step for a 3-step sequence.
+- [x] 2.1 Spike: find a way to run a GBA ROM in Homebrew mGBA 0.10.5 on macOS with scripted input and PNG screenshots, without user interaction (Lua `--script`, SDL frontend + movie file, or the `mgba` Python bindings). Check: a script captures a PNG of upstream `superfw.gba` at frame 120 into `build/shots/`. (checked: (a) Homebrew mGBA has no `--script`: its binary is the Qt frontend, "unrecognized option `--script`"; (b) no Python bindings shipped; (c) WORKS: Ubuntu 26.04 `libmgba-dev` 0.10.5 in the Docker image + `tools/mgba_shots.c` headless runner, PNG at frame 120 of `superfw.gba` = SuperFW boot logo, no window/permissions needed)
+- [x] 2.2 Write `tools/preview_shots.sh <rom> <sequence>` using the spike result. Check: it produces one PNG per step for a 3-step sequence. (checked: `tools/preview_shots.sh superfw.gba wait:60,shot,wait:60,shot,Start,wait:30,shot` wrote 3 PNGs; Dockerfile gained `libmgba-dev libpng-dev`; grammar documented in the script header)
 
 ## 3. M1 — Payload infrastructure
 
