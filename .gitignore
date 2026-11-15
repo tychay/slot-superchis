@@ -14,4 +14,4 @@ src/messages_data.h
 build/
 slot-preview.gba
 *.pack
-slot-smoke-host.bin
+src/slot/slot_art_gen.c

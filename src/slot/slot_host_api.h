@@ -24,7 +24,7 @@
 #include "fatfs/ff.h"
 #include "slot/slot_layout.h"
 
-#define SLOT_ABI_VERSION        1
+#define SLOT_ABI_VERSION        2     /* v2: f_unlink, mailbox->entry_reason */
 
 /* Action codes returned by slot_main() */
 #define SLOT_STOCK_UI           0     /* leave the carousel, show the stock SuperFW UI */
@@ -33,10 +33,15 @@
 
 #define SLOT_MAX_PATH           256   /* == MAX_FN_LEN */
 
-/* Lives at SLOT_MAILBOX_ADDR; written by the payload, read by the firmware. */
+/* Why the firmware is entering the payload (mailbox->entry_reason). */
+#define SLOT_ENTER_BOOT         0     /* first entry after power-on: show the splash */
+#define SLOT_ENTER_RESUME       1     /* back from the stock UI or a dismissed load popup */
+
+/* Lives at SLOT_MAILBOX_ADDR; the firmware sets entry_reason, the payload sets the launch fields. */
 struct slot_mailbox {
   uint32_t launch_size;               /* file size in bytes, for SLOT_LAUNCH */
   char     launch_path[SLOT_MAX_PATH];/* absolute path on the SD card, NUL terminated */
+  uint32_t entry_reason;              /* SLOT_ENTER_* */
 };
 
 struct slot_host_api {
@@ -59,6 +64,7 @@ struct slot_host_api {
   FRESULT (*f_stat)(const TCHAR *path, FILINFO *fno);
   FRESULT (*f_mkdir)(const TCHAR *path);
   FRESULT (*f_rename)(const TCHAR *path_old, const TCHAR *path_new);
+  FRESULT (*f_unlink)(const TCHAR *path);
 
   /* Input / timing */
   uint16_t (*get_keypress)(void);     /* newly pressed keys, GBA KEYINPUT bit order: A=0x1 B=0x2

@@ -13,6 +13,8 @@
 void slot_enter(void);
 // Called once per stock main-loop iteration: re-enters the carousel when requested.
 bool slot_poll(void);    // true if the carousel ran (caller should resync its frame timer)
+// True while a carousel-launched file is being opened (suppresses the stock recent list).
+bool slot_recent_suppressed(void);
 // Ask the main loop to re-enter the carousel (Select on a top-level stock tab).
 void slot_request_carousel(void);
 

@@ -950,6 +950,8 @@ unsigned guess_file_type(const uint8_t *header) {
 }
 
 static bool insert_recent_flush(const char *fn, unsigned flags) {
+  if (slot_recent_suppressed())   // slot: games launched from the carousel stay out of SuperFW's recent list (task 4.9)
+    return true;
   // Insert element.
   smenu.recent.maxentries = insert_recent_fn(sdr_state->rentries, smenu.recent.maxentries, fn, flags);
   return recent_flush(sdr_state->rentries, smenu.recent.maxentries);

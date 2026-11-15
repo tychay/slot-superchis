@@ -2,7 +2,7 @@
 VERSION_WORD := 0x00000016
 VERSION_SLUG_WORD := $(shell git rev-parse --short=8 HEAD || echo FFFFFFFF)
 # slot: fork milestone, shown on the Info screen as "slot.<milestone>". Bump here only.
-SLOT_MILESTONE := M0
+SLOT_MILESTONE := M1
 SLOT_MAX_IMAGE_KB ?= 2048
 
 PREFIX		:= arm-none-eabi-
@@ -104,7 +104,8 @@ DIRECTSAVE_CFLAGS=-Os -ggdb \
                  -marm -flto -fPIC
 
 # slot: the carousel payload (ADR-0004). Freestanding thumb code at a fixed SDRAM address; links no
-# firmware symbols and no libc/libgcc (-nostdlib turns any stray reference into a link error).
+# firmware symbols and no libc (-nostdlib turns any stray libc/firmware reference into a link error);
+# only libgcc (integer division, 64-bit multiply) is linked, see src/slot/slot_rt.c.
 SLOT_CFLAGS=-Os -ggdb \
             $(BASEFLAGS) \
             -Wall -Wextra -Isrc -I. \
@@ -113,7 +114,14 @@ SLOT_CFLAGS=-Os -ggdb \
 SLOT_PAYLOAD_OFFSET=12058624   # == SLOT_OFF_PAYLOAD (0x00B80000, src/slot/slot_layout.h)
 
 SLOTFILES=src/slot/payload_entry.c \
-          src/slot/slot_stub.c
+          src/slot/slot_rt.c \
+          src/slot/slot_scan.c \
+          src/slot/slot_settings.c \
+          src/slot/slot_frontend.c \
+          src/slot/slot_blit.s \
+          src/slot/slot_art_gen.c
+
+SLOTHEADERS=$(wildcard src/slot/*.h)
 
 FATFSFILES=fatfs/diskio.c \
            fatfs/ff.c \
@@ -213,22 +221,38 @@ ingamemenu.payload:	$(MENUFILES) src/menu_messages.h
 			-nostartfiles -fno-builtin -Wl,-Map=firmware.ingame.map -Wl,--print-memory-usage
 	$(OBJCOPY) --output-target=binary ingamemenu.elf ingamemenu.payload
 
+# slot: built-in art subset, generated from the pinned submodule (read-only) at build time.
+src/slot/slot_art_gen.c:	tools/slot_assets_gen.py vendor/slot-advance/common/slot_assets.h
+	python tools/slot_assets_gen.py vendor/slot-advance/common/slot_assets.h $@
+
 # slot: carousel payload
-slot.payload:	$(SLOTFILES) src/slot/slot_host_api.h src/slot/slot_layout.h ldscripts/slot_payload.ld.i
+slot.payload:	$(SLOTFILES) $(SLOTHEADERS) ldscripts/slot_payload.ld.i
 	$(CC) $(SLOT_CFLAGS) -o slot.elf $(SLOTFILES) -T ldscripts/slot_payload.ld.i \
-			-nostartfiles -nostdlib -Wl,-Map=slot.map -Wl,--print-memory-usage
+			-nostartfiles -nostdlib -Wl,-Map=slot.map -Wl,--print-memory-usage -lgcc
 	$(OBJCOPY) --output-target=binary slot.elf slot.payload
 
-ldscripts/slot_payload.ld.i ldscripts/gba_ewram.ld.i:	src/slot/slot_layout.h
+ldscripts/slot_payload.ld.i ldscripts/gba_ewram.ld.i ldscripts/slot_preview.ld.i:	src/slot/slot_layout.h
 
-# slot: emulator smoke test: a throwaway host (tools/slot_smoke_host.c) + slot.payload placed at
-# its SDRAM address inside one ROM image. Not part of `all`; use with tools/preview_shots.sh.
-slot-smoke.gba:	slot.payload tools/slot_smoke_host.c ldscripts/slot_smoke.ld
-	$(CC) $(SLOT_CFLAGS) -o slot-smoke-host.elf tools/slot_smoke_host.c -T ldscripts/slot_smoke.ld -nostartfiles -nostdlib
-	$(OBJCOPY) --output-target=binary slot-smoke-host.elf slot-smoke-host.bin
-	cp slot-smoke-host.bin $@
-	truncate -s $(SLOT_PAYLOAD_OFFSET) $@
-	cat slot.payload >> $@
+# slot: emulator preview ROM (developer tool, not firmware; tasks 5.1/D6). The same carousel code
+# linked against a stub host (src/slot/preview_host.c) into an ordinary ROM: the payload's writable
+# window is not available in an emulator (ROM space is read-only), so statics and the scratch
+# buffers live in EWRAM. Use with tools/preview_shots.sh.
+preview:	slot-preview.gba
+
+slot-preview.gba:	$(SLOTFILES) $(SLOTHEADERS) src/slot/preview_host.c ldscripts/slot_preview.ld.i
+	$(CC) $(SLOT_CFLAGS) -o slot-preview.elf $(SLOTFILES) src/slot/preview_host.c -T ldscripts/slot_preview.ld.i \
+			-nostartfiles -nostdlib -Wl,-Map=slot-preview.map -Wl,--print-memory-usage -lgcc
+	$(OBJCOPY) --output-target=binary slot-preview.elf $@
+
+# slot: host unit tests for the pure carousel modules (scan/sort/filter, settings). Run via
+# ./build.sh slot-tests (host gcc + AddressSanitizer inside the build image).
+SLOT_TEST_CFLAGS=-O0 -ggdb -Wall -Wextra -Isrc -I. -fsanitize=address,undefined -fno-omit-frame-pointer
+slot-tests:
+	mkdir -p build/tests
+	gcc $(SLOT_TEST_CFLAGS) -o build/tests/slot_scan_test tests/slot_scan_test.c src/slot/slot_scan.c
+	./build/tests/slot_scan_test
+	gcc $(SLOT_TEST_CFLAGS) -o build/tests/slot_settings_test tests/slot_settings_test.c src/slot/slot_settings.c src/slot/slot_scan.c
+	./build/tests/slot_settings_test
 
 ingame_trampoline.payload:	src/ingame_trampoline.S
 	$(CC) $(BASEFLAGS) -nostartfiles -T ldscripts/gba_ingametramp.ld -o ingame_trampoline.elf src/ingame_trampoline.S
@@ -262,5 +286,6 @@ upkr.elf:	tools/upkr.cc
 	g++ -o $@ $< -O3 -ffast-math
 
 clean:
-	rm -f ldscripts/*.i *.gba *.elf *.payload *.map res/*.comp emu/*.comp *.comp src/menu_messages.h src/messages_data.h
+	rm -f ldscripts/*.i *.gba *.elf *.payload *.map res/*.comp emu/*.comp *.comp src/menu_messages.h src/messages_data.h src/slot/slot_art_gen.c
+	rm -rf build/tests
 

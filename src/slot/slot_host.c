@@ -17,6 +17,8 @@
 
 static bool slot_wanted;     // Select pressed on a stock tab: go back to the carousel
 static bool slot_resume;     // a carousel-initiated popup is open: resume when dismissed
+static bool slot_booted;     // the payload has been entered at least once since power-on
+static bool slot_from_carousel;  // the file now being opened was picked in the carousel (task 4.9)
 
 static void slot_wait_vblank(void) {
   while (!(REG_DISPSTAT & DISPSTAT_VBLANK));
@@ -40,6 +42,7 @@ static const struct slot_host_api slot_api = {
   .f_stat     = f_stat,
   .f_mkdir    = f_mkdir,
   .f_rename   = f_rename,
+  .f_unlink   = f_unlink,
   .get_keypress    = get_keypress,
   .wait_for_vblank = slot_wait_vblank,
   .frame_count     = &frame_count,
@@ -61,6 +64,9 @@ static int slot_run_payload(void) {
   struct slot_mailbox *mb = slot_api.mailbox;
   mb->launch_size = 0;
   mb->launch_path[0] = 0;
+  mb->entry_reason = slot_booted ? SLOT_ENTER_RESUME : SLOT_ENTER_BOOT;
+  slot_booted = true;
+  slot_from_carousel = false;
 
   int (*entry)(const struct slot_host_api *) = (int (*)(const struct slot_host_api *))h->entry;
   int act = entry(&slot_api);
@@ -82,12 +88,20 @@ void slot_enter(void) {
   while (slot_run_payload() == SLOT_LAUNCH) {
     // Same code path as picking the file in the stock browser: shows the load popup
     // (or starts the GB emulator). If it did not open anything, go back to the carousel.
+    slot_from_carousel = true;
     menu_open_file(slot_api.mailbox->launch_path, slot_api.mailbox->launch_size);
     if (menu_popup_active()) {
       slot_resume = true;     // slot_poll() re-enters once the popup is dismissed
       break;
     }
   }
+}
+
+// True while a file picked in the carousel is being opened: SuperFW must not add it to its
+// shared recent list (.superfw/recent.txt), so this fork's own .gba stays on top of stock
+// SuperFW's Recent tab and returning to the fork is power-on -> A (task 4.9).
+bool slot_recent_suppressed(void) {
+  return slot_from_carousel;
 }
 
 void slot_request_carousel(void) {
