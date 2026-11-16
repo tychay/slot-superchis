@@ -86,18 +86,24 @@ tabs above with L/R first.
 The carousel shows the cart images that [slot. Cart Studio](https://studio.slot-cfw.fyi) makes.
 Carts without art show a plain cart with the game's name.
 
-Cart Studio recognises a slot. card by an EZ-Flash kernel file (`ezkernel.bin`) at the card root.
-It only checks the name, so an empty file is enough:
+This carousel reads the same art as [slot. advance](https://github.com/FrankieT19/slot-advance)
+(`SYSTEM/SLOT/`). Cart Studio writes that format when it sees an EZ-Flash kernel file
+(`ezkernel.bin`) at the card root. It only checks the name, so an empty file is enough:
 
 1. Create an **empty file named `ezkernel.bin`** at the root of the SD card, next to `Games/`.
 2. Open [studio.slot-cfw.fyi](https://studio.slot-cfw.fyi):
    - **Chrome or Edge:** choose the card, allow file editing, make your labels, then **Write to
      card**. Done.
    - **Safari or Firefox:** these can't write to a folder, so Cart Studio offers a download
-     instead. Extract `labels.zip` and copy its `SYSTEM` folder to the card root.
+     instead. Extract `labels.zip` and copy its `SYSTEM` folder to the card root. (Not yet
+     tested.)
 3. Boot the carousel. Art streams in as you scroll.
 
-Remove `ezkernel.bin` before putting the card in an EZ-Flash.
+Cart Studio also writes a `Labels/` folder of plain pictures; the carousel ignores it. Remove
+`ezkernel.bin` before putting the card in an EZ-Flash.
+
+**On a Mac**, writing to the card leaves hidden `._` files that stock SuperFW's file browser lists.
+Run `dot_clean -m /Volumes/<card>` before ejecting to remove them.
 
 <details>
 <summary>Converting a <code>labels.zip</code> that has no <code>SYSTEM</code> folder</summary>
