@@ -6,7 +6,7 @@ flashcart. Your games sit on a shelf as carts; pick one, it slides into the slot
 
 <!-- TODO(terry): a sentence or two in your own words on why this exists. -->
 
-**[⬇ Download the latest release](https://github.com/tychay/slot-superchis/releases/latest)**: grab
+**[⬇ Download the latest release](https://github.com/tychay/slot-superchis/releases)**: grab
 `slot-superchis-v….gba` from the list of files, then follow [Install](#install).
 
 ---
@@ -58,7 +58,7 @@ Screenshots come from the emulator preview build, with label art made in
 Runs from the SD card. Nothing is flashed.
 
 1. Download `slot-superchis-v0.1.0.gba` from the
-   [latest release](https://github.com/tychay/slot-superchis/releases/latest) and copy it anywhere
+   [Releases page](https://github.com/tychay/slot-superchis/releases) and copy it anywhere
    on the SD card.
 2. Put your games in `Games/GBA` (`.gba`), `Games/GB` (`.gb`) and `Games/GBC` (`.gbc`) at the card
    root.
