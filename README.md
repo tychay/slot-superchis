@@ -21,7 +21,11 @@ flashcart. Your games sit on a shelf as carts; pick one, it slides into the slot
 
 Screenshots come from the emulator preview build, with made-up games and labels.
 
-<!-- TODO(terry): link the video here once it's up; animated GIFs later. -->
+**Video:** on a real SuperChis Prime in an original GBA.
+
+[![slot. superchis running on a GBA](https://img.youtube.com/vi/s8WVENtDxms/hqdefault.jpg)](https://youtu.be/s8WVENtDxms)
+
+<!-- TODO(terry): animated GIFs later. -->
 
 ---
 
