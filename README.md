@@ -6,22 +6,26 @@ flashcart. Your games sit on a shelf as carts; pick one, it slides into the slot
 
 <!-- TODO(terry): a sentence or two in your own words on why this exists. -->
 
+**[⬇ Download the latest release](https://github.com/tychay/slot-superchis/releases/latest)**: grab
+`slot-superchis-v….gba` from the list of files, then follow [Install](#install).
+
 ---
 
 ## What does it look like?
 
 <p align="center">
-<img src=".github/resources/screenshots/gba-wood.png" width="48%" alt="GBA shelf in the Wood theme, a purple Aurora Quest cart selected">
-<img src=".github/resources/screenshots/gbc-wood.png" width="48%" alt="GBC shelf with the rounded Game Boy Color cart outline">
+<img src=".github/resources/screenshots/gba-wood.png" width="48%" alt="GBA shelf in the Wood theme, Advance Wars selected">
+<img src=".github/resources/screenshots/gbc-wood.png" width="48%" alt="GBC shelf in the Wood theme, Pokémon Crystal selected">
 </p>
 <p align="center">
-<img src=".github/resources/screenshots/gb-dark.png" width="48%" alt="GB shelf in the Dark theme">
-<img src=".github/resources/screenshots/gba-light.png" width="48%" alt="GBA shelf in the Light theme">
+<img src=".github/resources/screenshots/gb-dark.png" width="48%" alt="GB shelf in the Dark theme, Tetris selected">
+<img src=".github/resources/screenshots/gba-light.png" width="48%" alt="GBA shelf in the Light theme, The Minish Cap selected">
 </p>
 
-Screenshots come from the emulator preview build, with made-up games and labels.
+Screenshots come from the emulator preview build, with label art made in
+[slot. Cart Studio](https://studio.slot-cfw.fyi).
 
-**Video:** on a real SuperChis Prime in an original GBA.
+**Video:** SuperChis Prime on a modded GBA (AGB-001).
 
 [![slot. superchis running on a GBA](https://img.youtube.com/vi/s8WVENtDxms/hqdefault.jpg)](https://youtu.be/s8WVENtDxms)
 
@@ -44,7 +48,8 @@ Screenshots come from the emulator preview build, with made-up games and labels.
 ## Requirements
 
 - A **SuperChis Prime** with stock [SuperFW](https://github.com/davidgfnet/superfw) already
-  flashed. This is the only cart it is built for.
+  flashed. This is the only cart it is built for. If you have an **EZ-Flash Omega**, check out
+  [slot. advance](https://github.com/FrankieT19/slot-advance) instead.
 - A GBA, GBA SP, Game Boy Micro or DS. Tested on an original GBA.
 - Your games, **unzipped**.
 
@@ -52,8 +57,9 @@ Screenshots come from the emulator preview build, with made-up games and labels.
 
 Runs from the SD card. Nothing is flashed.
 
-1. Download `slot-superchis-v0.1.0.gba` from
-   [Releases](https://github.com/tychay/slot-superchis/releases) and copy it anywhere on the SD card.
+1. Download `slot-superchis-v0.1.0.gba` from the
+   [latest release](https://github.com/tychay/slot-superchis/releases/latest) and copy it anywhere
+   on the SD card.
 2. Put your games in `Games/GBA` (`.gba`), `Games/GB` (`.gb`) and `Games/GBC` (`.gbc`) at the card
    root.
 3. Boot stock SuperFW and launch `slot-superchis-v0.1.0.gba` from its file browser, like any
@@ -206,7 +212,16 @@ and runs from there. SuperFW's own files change only in a few places, each marke
 
 ## AI Disclosure
 
-<!-- TODO(terry): your own words. slot.'s README has an example of the tone if you want one. -->
+<!-- TODO(terry): draft from Claude; rewrite in your own voice. -->
+
+This port was built with [Claude Code](https://claude.com/claude-code). Claude wrote the code and
+the design docs ([adr/](adr/), [openspec/](openspec/)) from my direction, and every build was
+tested on a real SuperChis by me. That testing is how the cart's memory quirks were found.
+
+slot. itself was also put together with AI (see its
+[AI Disclosure](https://github.com/slot-cfw/slot#ai-disclosure)), so this fits right in. The real
+stars are SuperFW, which does all the hard work of running your games, and the slot. design and
+art.
 
 ## Credits
 
