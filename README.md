@@ -212,16 +212,11 @@ and runs from there. SuperFW's own files change only in a few places, each marke
 
 ## AI Disclosure
 
-<!-- TODO(terry): draft from Claude; rewrite in your own voice. -->
-
-This port was built with [Claude Code](https://claude.com/claude-code). Claude wrote the code and
-the design docs ([adr/](adr/), [openspec/](openspec/)) from my direction, and every build was
-tested on a real SuperChis by me. That testing is how the cart's memory quirks were found.
+This port was vibecoded in [Claude Code](https://claude.com/claude-code). (I tested it on a real SuperChis Prime on my GBA.)
 
 slot. itself was also put together with AI (see its
 [AI Disclosure](https://github.com/slot-cfw/slot#ai-disclosure)), so this fits right in. The real
-stars are SuperFW, which does all the hard work of running your games, and the slot. design and
-art.
+stars are SuperFW, which does all the hard work of running your games, slot. advance where I shamelessly stole the idea, and the slot. for the design and art.
 
 ## Credits
 
